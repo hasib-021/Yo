@@ -6,7 +6,7 @@ module.exports.config = {
     name: "baby",
     aliases: ["baby", "bbe", "babe", "sam"],
     version: "6.9.1",
-    author: "Hasib",
+    author: "dipto",
     countDown: 0,
     role: 0,
     description: "better than all sim simi",
@@ -27,7 +27,7 @@ module.exports.config = {
 // Owner ID
 const ownerID = "61557991443492";
 
-// Random replies array (all emojis preserved)
+// Random replies array (all emojis kept)
 const randomReplies = [
     "𝐇𝐢 😀, 𝐈 𝐚𝐦 𝐡𝐞𝐫𝐞!",
     "𝐖𝐡𝐚𝐭'𝐬 𝐮𝐩?",
@@ -97,28 +97,29 @@ module.exports.onStart = async ({ api, event, args, usersData }) => {
             if (dipto === "owner on" && uid === ownerID) {
                 state.ownerOnly = true;
                 state.adminOnly = false;
-                return sendAndRegister(api, event, "✅ Owner-only mode enabled. Only you can talk to me.");
+                return sendAndRegister(api, event, "Owner-only mode enabled. Only you can talk to me.");
             }
             if (dipto === "owner off" && uid === ownerID) {
                 state.ownerOnly = false;
-                return sendAndRegister(api, event, "✅ Owner-only mode disabled. Everyone can talk.");
+                return sendAndRegister(api, event, "Owner-only mode disabled. Everyone can talk.");
             }
             if (dipto === "admin on") {
                 state.adminOnly = true;
                 state.ownerOnly = false;
-                return sendAndRegister(api, event, "✅ Admin-only mode enabled. Only admins can talk to me.");
+                return sendAndRegister(api, event, "Admin-only mode enabled. Only admins can talk to me.");
             }
             if (dipto === "admin off") {
                 state.adminOnly = false;
-                return sendAndRegister(api, event, "✅ Admin-only mode disabled. Everyone can talk.");
+                return sendAndRegister(api, event, "Admin-only mode disabled. Everyone can talk.");
             }
         } else {
             if (/^(owner|admin)\s+(on|off)$/i.test(dipto)) {
-                return sendAndRegister(api, event, "❌ Only owner and admins can use this command.");
+                return sendAndRegister(api, event, "Only owner and admins can use this command.");
             }
         }
 
-        // === COMMANDS BELOW ===
+        // === COMMANDS BELOW (unchanged, all emojis kept) ===
+
         if (args[0] === 'rm' && dipto.includes('-')) {
             const [fi, f] = dipto.replace("rm ", "").split(/\s*-\s*/);
             const da = (await axios.get(`\( {link}?remove= \){encodeURIComponent(fi)}&index=${encodeURIComponent(f)}`)).data.message;
@@ -194,7 +195,7 @@ module.exports.onChat = async ({ api, event, message }) => {
         // === MODE CHECK: Admin Only ===
         if (state.adminOnly && !isAdmin(uid)) return;
 
-        // === OWNER SPECIAL WORDS ===
+        // === OWNER SPECIAL WORDS (emojis kept) ===
         if (uid === ownerID) {
             const ownerTriggers = ["bou", "bow", "kire", "sali"];
             const matchedOwner = ownerTriggers.find(t => body === t || body.startsWith(t + " "));
@@ -202,6 +203,7 @@ module.exports.onChat = async ({ api, event, message }) => {
             if (matchedOwner) {
                 const userMsg = body.slice(matchedOwner.length).trim();
                 if (!userMsg) {
+                    // Special reply (emojis kept)
                     const specialReplies = {
                         bou: ["হ্যাঁ, বলো জান শুনছি তোমার কথা 😘😘", "এইতো আমি এখনো 🙈🙈", "আমি তোমার জন্যই অপেক্ষা করেছিলাম 🙈😘"],
                         bow: ["হ্যাঁ, বলো জান শুনছি তোমার কথা 😘😘", "এইতো আমি এখনো 🙈🙈", "আমি তোমার জন্যই অপেক্ষা করেছিলাম 🙈😘"],
@@ -211,6 +213,7 @@ module.exports.onChat = async ({ api, event, message }) => {
                     const replies = specialReplies[matchedOwner] || specialReplies.bou;
                     return sendAndRegister(api, event, replies[Math.floor(Math.random() * replies.length)]);
                 } else {
+                    // Normal chat via API
                     const res = (await axios.get(`\( {baseApiUrl()}/baby?text= \){encodeURIComponent(userMsg)}&senderID=${uid}&font=1`)).data.reply;
                     return sendAndRegister(api, event, res);
                 }
@@ -220,26 +223,13 @@ module.exports.onChat = async ({ api, event, message }) => {
         // === IGNORE OWNER TRIGGERS FOR NON-OWNER ===
         if (["bou", "bow", "kire", "sali"].includes(body) && uid !== ownerID) return;
 
-        // === SPECIAL REACTION TRIGGERS: karim & arafat ===
-        if (body.startsWith("karim")) {
-            api.setMessageReaction("🐼", event.messageID, () => {});
-            setTimeout(() => api.setMessageReaction("🍂", event.messageID, () => {}), 1000);
-            setTimeout(() => api.setMessageReaction("👻", event.messageID, () => {}), 2000);
-        }
-
-        if (body.startsWith("arafat")) {
-            api.setMessageReaction("☠️", event.messageID, () => {});
-            setTimeout(() => api.setMessageReaction("🍂", event.messageID, () => {}), 1000);
-            setTimeout(() => api.setMessageReaction("✌️", event.messageID, () => {}), 2000);
-        }
-
         // === NORMAL TRIGGERS ===
         const triggers = ["baby", "bby", "bot", "babu", "janu", "naru", "karim", "hinata", "hina", "arafat"];
         const matchedTrigger = triggers.find(t => body.startsWith(t));
 
         if (!matchedTrigger) return;
 
-        const userMessage = body.replace(new RegExp(`^${matchedTrigger}\\s*`), "").trim();
+        const userMessage = body.replace(new RegExp(`^${matchedTrigger}\\s*`), "");
         if (!userMessage) {
             return sendAndRegister(api, event, randomReplies[Math.floor(Math.random() * randomReplies.length)]);
         }
@@ -257,6 +247,7 @@ module.exports.onReply = async ({ api, event, Reply }) => {
 
     const uid = event.senderID;
 
+    // Apply same mode restrictions
     if (state.ownerOnly && uid !== ownerID) return;
     if (state.adminOnly && !isAdmin(uid)) return;
 

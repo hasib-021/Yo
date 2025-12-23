@@ -2,7 +2,7 @@ module.exports.config = {
     name: "bully",
     version: "1.5",
     role: 0,
-    author: "Hasib × Modified",
+    author: "Hasib",
     description: "Auto savage bully loaded with the nastiest, filthiest words – no mercy",
     category: "automation",
     usages: "bully @mention | reply with bully | bully off"

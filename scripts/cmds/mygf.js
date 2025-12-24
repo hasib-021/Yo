@@ -6,7 +6,7 @@ const path = require("path");
 module.exports = {
   config: {
     name: "mygf",
-    author: "Hasib (Grok template improved)",
+    author: "Hasib (Perfect fit template)",
     category: "love",
   },
 
@@ -58,7 +58,7 @@ module.exports = {
         matchCandidates[Math.floor(Math.random() * matchCandidates.length)];
       const matchName = selectedMatch.name;
 
-      // Canvas dimensions (template)
+      // Canvas setup
       const width = 1280;
       const height = 720;
       const canvas = createCanvas(width, height);
@@ -69,13 +69,13 @@ module.exports = {
       const background = await loadImage(backgroundUrl);
       ctx.drawImage(background, 0, 0, width, height);
 
-      // Helper: fallback avatar
+      // Fallback avatar
       const placeholderPath = path.join(__dirname, "placeholder.png");
       const placeholder = fs.existsSync(placeholderPath)
         ? await loadImage(placeholderPath)
         : null;
 
-      // Helper function to load profile pic with fallback
+      // Helper to load profile pic with fallback
       async function loadProfilePic(userId) {
         try {
           const url = `https://graph.facebook.com/${userId}/picture?width=720&height=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
@@ -100,17 +100,21 @@ module.exports = {
         ctx.restore();
       }
 
-      // Avatar positions
-      const avatarRadius = 156; // Diameter 312px → radius 156px
-      drawCircleAvatar(senderImage, width * 0.266, height * 0.5, avatarRadius); // left
-      drawCircleAvatar(matchImage, width * 0.734, height * 0.5, avatarRadius); // right
+      // === Perfect fit adjustments ===
+      const avatarRadius = 140; // 280px diameter for inner white circle
+
+      // Left avatar (sender/King)
+      drawCircleAvatar(senderImage, 340, 360, avatarRadius);
+
+      // Right avatar (match/Queen)
+      drawCircleAvatar(matchImage, 940, 360, avatarRadius);
 
       // Save output
       const outputPath = path.join(__dirname, `pair_${event.senderID}.png`);
       const buffer = canvas.toBuffer();
       await fs.promises.writeFile(outputPath, buffer);
 
-      // Calculate love percentage (optional: based on name length)
+      // Love percentage (based on name length + random)
       const lovePercent = Math.min(
         100,
         50 + Math.floor((senderName.length + matchName.length) * 2 + Math.random() * 20)

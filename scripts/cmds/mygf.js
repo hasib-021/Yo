@@ -3,6 +3,7 @@ const { createCanvas, loadImage } = require("canvas");
 const fs = require("fs");
 const path = require("path");
 
+// Load Facebook avatar correctly (no gray image)
 async function loadFBAvatar(uid) {
   const url = `https://graph.facebook.com/${uid}/picture?width=720&height=720`;
   const res = await axios.get(url, {
@@ -24,8 +25,8 @@ module.exports = {
       const threadInfo = await api.getThreadInfo(event.threadID);
       const users = threadInfo.userInfo;
 
-      const mentions = Object.keys(event.mentions || {});
       const senderID = event.senderID;
+      const mentions = Object.keys(event.mentions || {});
       const replyID =
         event.type === "message_reply"
           ? event.messageReply.senderID
@@ -33,7 +34,7 @@ module.exports = {
 
       let user1ID, user2ID;
 
-      // ===== USER PICK =====
+      // ===== USER SELECTION =====
       if (mentions.length >= 2) {
         user1ID = mentions[0];
         user2ID = mentions[1];
@@ -55,20 +56,19 @@ module.exports = {
         if (!opposite.length)
           return api.sendMessage("❌ No match found", event.threadID);
 
-        const rand = opposite[Math.floor(Math.random() * opposite.length)];
+        const random = opposite[Math.floor(Math.random() * opposite.length)];
         user1ID = senderID;
-        user2ID = rand.id;
+        user2ID = random.id;
       }
 
-      // ===== USER DATA =====
       const user1 = await usersData.get(user1ID);
       const user2 = await usersData.get(user2ID);
 
-      // ===== LOAD REAL AVATARS (FIX) =====
+      // ===== LOAD AVATARS =====
       const avatar1 = await loadFBAvatar(user1ID);
       const avatar2 = await loadFBAvatar(user2ID);
 
-      // ===== BACKGROUND IMAGE =====
+      // ===== LOAD BACKGROUND =====
       const background = await loadImage(
         "https://i.postimg.cc/RFVB0KdS/grok-image-xang5o4.jpg"
       );
@@ -81,7 +81,7 @@ module.exports = {
 
       ctx.drawImage(background, 0, 0, width, height);
 
-      // ===== CIRCLE FUNCTION =====
+      // ===== DRAW CIRCLE AVATAR =====
       function drawCircle(img, x, y, size) {
         ctx.save();
         ctx.beginPath();
@@ -91,31 +91,39 @@ module.exports = {
         ctx.restore();
       }
 
-      const size = 260;
+      // ===== AVATAR POSITION (SIZE 80) =====
+      const avatarSize = 80;
+      const offsetY = -20;
 
-      drawCircle(avatar1, 90, height / 2 - size / 2, size);
-      drawCircle(avatar2, width - size - 90, height / 2 - size / 2, size);
+      const leftX = 130;
+      const leftY = height / 2 - avatarSize / 2 + offsetY;
 
-      // ===== SAVE =====
-      const output = path.join(__dirname, "pair.png");
-      fs.writeFileSync(output, canvas.toBuffer("image/png"));
+      const rightX = width - avatarSize - 130;
+      const rightY = height / 2 - avatarSize / 2 + offsetY;
+
+      drawCircle(avatar1, leftX, leftY, avatarSize);
+      drawCircle(avatar2, rightX, rightY, avatarSize);
+
+      // ===== SAVE IMAGE =====
+      const outputPath = path.join(__dirname, "pair.png");
+      fs.writeFileSync(outputPath, canvas.toBuffer("image/png"));
 
       const love = Math.floor(Math.random() * 31) + 70;
 
-      // ===== SEND =====
+      // ===== SEND MESSAGE =====
       api.sendMessage(
         {
           body:
             `👑 King: ${user1.name}\n` +
             `👑 Queen: ${user2.name}\n` +
             `💖 Love: ${love}%`,
-          attachment: fs.createReadStream(output),
+          attachment: fs.createReadStream(outputPath),
         },
         event.threadID,
-        () => fs.unlinkSync(output)
+        () => fs.unlinkSync(outputPath)
       );
-    } catch (e) {
-      api.sendMessage("❌ Error: " + e.message, event.threadID);
+    } catch (err) {
+      api.sendMessage("❌ Error: " + err.message, event.threadID);
     }
   },
 };

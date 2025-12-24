@@ -18,8 +18,16 @@ module.exports = {
       const threadData = await api.getThreadInfo(event.threadID);
       const users = threadData.userInfo;
 
+      function normalizeGender(g) {
+        if (g === "MALE" || g === 1) return "MALE";
+        if (g === "FEMALE" || g === 2) return "FEMALE";
+        return null;
+      }
+
       const myData = users.find(u => u.id === event.senderID);
-      if (!myData || !myData.gender) {
+      const myGender = normalizeGender(myData?.gender);
+
+      if (!myGender) {
         return api.sendMessage(
           "⚠️ Could not determine your gender.",
           event.threadID,
@@ -27,22 +35,15 @@ module.exports = {
         );
       }
 
-      const myGender = myData.gender;
       let matchCandidates = [];
 
       if (myGender === "MALE") {
         matchCandidates = users.filter(
-          u => u.gender === "FEMALE" && u.id !== event.senderID
-        );
-      } else if (myGender === "FEMALE") {
-        matchCandidates = users.filter(
-          u => u.gender === "MALE" && u.id !== event.senderID
+          u => normalizeGender(u.gender) === "FEMALE" && u.id !== event.senderID
         );
       } else {
-        return api.sendMessage(
-          "⚠️ Gender undefined. Cannot find match.",
-          event.threadID,
-          event.messageID
+        matchCandidates = users.filter(
+          u => normalizeGender(u.gender) === "MALE" && u.id !== event.senderID
         );
       }
 
@@ -56,11 +57,12 @@ module.exports = {
 
       const selectedMatch =
         matchCandidates[Math.floor(Math.random() * matchCandidates.length)];
+
       const matchName = selectedMatch.name || "Unknown";
 
       // ================= CANVAS SETUP =================
-      const width = 1280;
-      const height = 720;
+      const width = 1344;
+      const height = 768;
       const canvas = createCanvas(width, height);
       const ctx = canvas.getContext("2d");
 
@@ -76,7 +78,7 @@ module.exports = {
         ? await loadImage(placeholderPath)
         : null;
 
-      // ================= PROFILE PIC LOADER =================
+      // ================= PROFILE IMAGE =================
       async function loadProfilePic(userId) {
         try {
           const url = `https://graph.facebook.com/${userId}/picture?width=720&height=720`;
@@ -89,57 +91,51 @@ module.exports = {
       const senderImage = await loadProfilePic(event.senderID);
       const matchImage = await loadProfilePic(selectedMatch.id);
 
-      // ================= CIRCLE AVATAR FUNCTION =================
-      function drawCircleAvatar(img, centerX, centerY, radius) {
+      // ================= ELLIPSE AVATAR =================
+      function drawEllipseAvatar(img, centerX, centerY, radiusX, radiusY) {
         if (!img) return;
+
         ctx.save();
-
-        // Inner dark background
         ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-        ctx.fillStyle = "#000";
-        ctx.fill();
+        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
         ctx.closePath();
-
-        // Clip avatar
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
         ctx.clip();
 
         ctx.drawImage(
           img,
-          centerX - radius,
-          centerY - radius,
-          radius * 2,
-          radius * 2
+          centerX - radiusX,
+          centerY - radiusY,
+          radiusX * 2,
+          radiusY * 2
         );
 
         ctx.restore();
       }
 
       // ================= AVATAR SIZE =================
-      const avatarRadius = 140;
+      const avatarRadiusX = 175; // 350 / 2
+      const avatarRadiusY = 177; // 354 / 2
 
-      // Left (Sender)
-      drawCircleAvatar(senderImage, 320, 360, avatarRadius);
+      // ================= DRAW AVATARS =================
+      // King (Left)
+      drawEllipseAvatar(senderImage, 336, 384, avatarRadiusX, avatarRadiusY);
 
-      // Right (Match)
-      drawCircleAvatar(matchImage, 960, 360, avatarRadius);
+      // Queen (Right)
+      drawEllipseAvatar(matchImage, 1008, 384, avatarRadiusX, avatarRadiusY);
 
       // ================= SAVE IMAGE =================
-      const outputPath = path.join(__dirname, `pair_${event.senderID}.png`);
+      const outputPath = path.join(
+        __dirname,
+        `pair_${event.senderID}_${Date.now()}.png`
+      );
+
       const buffer = canvas.toBuffer("image/png");
       await fs.promises.writeFile(outputPath, buffer);
 
-      // ================= LOVE PERCENTAGE =================
-      const lovePercent = Math.min(
-        100,
-        50 +
-          Math.floor(
-            (senderName.length + matchName.length) * 2 +
-              Math.random() * 20
-          )
-      );
+      // ================= LOVE PERCENT =================
+      const base = 60 + Math.floor(Math.random() * 20);
+      const nameBonus = Math.min(20, senderName.length + matchName.length);
+      const lovePercent = Math.min(100, base + nameBonus);
 
       const message =
         `🥰 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹 𝗽𝗮𝗶𝗿𝗶𝗻𝗴\n` +
@@ -154,7 +150,7 @@ module.exports = {
           attachment: fs.createReadStream(outputPath),
         },
         event.threadID,
-        () => fs.existsSync(outputPath) && fs.unlinkSync(outputPath),
+        () => fs.promises.unlink(outputPath).catch(() => {}),
         event.messageID
       );
 

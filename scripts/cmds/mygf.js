@@ -1,4 +1,3 @@
-const axios = require("axios");
 const { createCanvas, loadImage } = require("canvas");
 const fs = require("fs");
 const path = require("path");
@@ -6,7 +5,7 @@ const path = require("path");
 module.exports = {
   config: {
     name: "mygf",
-    author: "Hasib",
+    author: "Hasib (Perfect fit template)",
     category: "love",
   },
 
@@ -80,7 +79,7 @@ module.exports = {
       // ================= PROFILE PIC LOADER =================
       async function loadProfilePic(userId) {
         try {
-          const url = `https://graph.facebook.com/${userId}/picture?width=720&height=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
+          const url = `https://graph.facebook.com/${userId}/picture?width=720&height=720`;
           return await loadImage(url);
         } catch {
           return placeholder;
@@ -94,10 +93,19 @@ module.exports = {
       function drawCircleAvatar(img, centerX, centerY, radius) {
         if (!img) return;
         ctx.save();
+
+        // Inner dark background
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#000";
+        ctx.fill();
         ctx.closePath();
+
+        // Clip avatar
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
         ctx.clip();
+
         ctx.drawImage(
           img,
           centerX - radius,
@@ -105,23 +113,21 @@ module.exports = {
           radius * 2,
           radius * 2
         );
+
         ctx.restore();
       }
 
-      // ================= PERFECT FIT VALUES =================
-      const avatarRadius = 140; // 280px diameter
+      // ================= AVATAR SIZE =================
+      const avatarRadius = 140;
 
-      // Left (King)
+      // Left (Sender)
       drawCircleAvatar(senderImage, 320, 360, avatarRadius);
 
-      // Right (Queen)
+      // Right (Match)
       drawCircleAvatar(matchImage, 960, 360, avatarRadius);
 
       // ================= SAVE IMAGE =================
-      const outputPath = path.join(
-        __dirname,
-        `pair_${event.senderID}.png`
-      );
+      const outputPath = path.join(__dirname, `pair_${event.senderID}.png`);
       const buffer = canvas.toBuffer("image/png");
       await fs.promises.writeFile(outputPath, buffer);
 

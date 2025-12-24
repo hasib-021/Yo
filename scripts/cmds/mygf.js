@@ -80,10 +80,10 @@ module.exports = {
         matchName = user2.name;
 
         sIdImage = await loadImage(
-          `https://graph.facebook.com/${user1ID}/picture?width=720&height=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`
+          `https://graph.facebook.com/${user1ID}/picture?width=360&height=360&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`
         );
         pairPersonImage = await loadImage(
-          `https://graph.facebook.com/${user2ID}/picture?width=720&height=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`
+          `https://graph.facebook.com/${user2ID}/picture?width=360&height=360&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`
         );
       }
       // Random pairing
@@ -117,10 +117,10 @@ module.exports = {
         matchName = selectedMatch.name;
 
         sIdImage = await loadImage(
-          `https://graph.facebook.com/${senderID}/picture?width=720&height=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`
+          `https://graph.facebook.com/${senderID}/picture?width=360&height=360&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`
         );
         pairPersonImage = await loadImage(
-          `https://graph.facebook.com/${selectedMatch.id}/picture?width=720&height=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`
+          `https://graph.facebook.com/${selectedMatch.id}/picture?width=360&height=360&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`
         );
       }
 

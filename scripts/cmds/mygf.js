@@ -15,7 +15,7 @@ async function loadFBAvatar(uid) {
 
 module.exports = {
   config: {
-    name: "pair",
+    name: "mygf",
     author: "Hasib",
     category: "LOVE",
   },

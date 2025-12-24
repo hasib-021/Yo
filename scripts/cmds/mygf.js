@@ -3,127 +3,183 @@ const { createCanvas, loadImage } = require("canvas");
 const fs = require("fs");
 const path = require("path");
 
-// Load Facebook avatar properly
-async function loadFBAvatar(uid) {
-  const url = `https://graph.facebook.com/${uid}/picture?width=720&height=720`;
-  const res = await axios.get(url, {
-    responseType: "arraybuffer",
-    maxRedirects: 5,
-  });
-  return await loadImage(res.data);
-}
-
 module.exports = {
   config: {
-    name: "mygf",
+    name: "pair5",
     author: "Hasib",
-    category: "LOVE",
+    category: "TOOLS",
   },
 
   onStart: async function ({ api, event, usersData }) {
     try {
-      const threadInfo = await api.getThreadInfo(event.threadID);
-      const users = threadInfo.userInfo;
+      const threadData = await api.getThreadInfo(event.threadID);
+      const users = threadData.userInfo;
 
-      const senderID = event.senderID;
-      const mentions = Object.keys(event.mentions || {});
-      const replyID =
+      const mentions = event.mentions || {};
+      const mentionIDs = Object.keys(mentions);
+      const repliedUserID =
         event.type === "message_reply"
           ? event.messageReply.senderID
           : null;
+      const senderID = event.senderID;
 
-      let user1ID, user2ID;
+      let user1ID = null;
+      let user2ID = null;
 
-      // ===== USER SELECTION =====
-      if (mentions.length >= 2) {
-        user1ID = mentions[0];
-        user2ID = mentions[1];
-      } else if (mentions.length === 1) {
+      // ===== Pair selection =====
+      if (mentionIDs.length >= 2) {
+        const filtered = mentionIDs.filter(id => id !== senderID);
+        if (filtered.length < 2) {
+          return api.sendMessage(
+            "⚠️ Please mention two different users.",
+            event.threadID,
+            event.messageID
+          );
+        }
+        user1ID = filtered[0];
+        user2ID = filtered[1];
+      } else if (mentionIDs.length === 1 && mentionIDs[0] !== senderID) {
         user1ID = senderID;
-        user2ID = mentions[0];
-      } else if (replyID && replyID !== senderID) {
+        user2ID = mentionIDs[0];
+      } else if (repliedUserID && repliedUserID !== senderID) {
         user1ID = senderID;
-        user2ID = replyID;
-      } else {
-        const sender = users.find(u => u.id === senderID);
-        if (!sender || !sender.gender)
-          return api.sendMessage("❌ Gender not found", event.threadID);
-
-        const opposite = users.filter(
-          u => u.id !== senderID && u.gender && u.gender !== sender.gender
-        );
-
-        if (!opposite.length)
-          return api.sendMessage("❌ No match found", event.threadID);
-
-        const random = opposite[Math.floor(Math.random() * opposite.length)];
-        user1ID = senderID;
-        user2ID = random.id;
+        user2ID = repliedUserID;
       }
 
-      const user1 = await usersData.get(user1ID);
-      const user2 = await usersData.get(user2ID);
+      let baseUserID;
+      let matchName;
+      let sIdImage;
+      let pairPersonImage;
 
-      // ===== LOAD AVATARS =====
-      const avatar1 = await loadFBAvatar(user1ID);
-      const avatar2 = await loadFBAvatar(user2ID);
+      // ===== Manual pairing =====
+      if (user1ID && user2ID) {
+        const user1 = users.find(u => u.id === user1ID);
+        const user2 = users.find(u => u.id === user2ID);
 
-      // ===== LOAD BACKGROUND =====
+        if (!user1 || !user2 || !user1.gender || !user2.gender) {
+          return api.sendMessage(
+            "⚠️ Couldn't determine gender.",
+            event.threadID,
+            event.messageID
+          );
+        }
+
+        if (user1.gender === user2.gender) {
+          return api.sendMessage(
+            "⚠️ Same gender pairing not allowed.",
+            event.threadID,
+            event.messageID
+          );
+        }
+
+        baseUserID = user1ID;
+        matchName = user2.name;
+
+        sIdImage = await loadImage(
+          `https://graph.facebook.com/${user1ID}/picture?width=720&height=720`
+        );
+        pairPersonImage = await loadImage(
+          `https://graph.facebook.com/${user2ID}/picture?width=720&height=720`
+        );
+      }
+      // ===== Random pairing =====
+      else {
+        const senderData = users.find(u => u.id === senderID);
+        if (!senderData || !senderData.gender) {
+          return api.sendMessage(
+            "⚠️ Could not determine your gender.",
+            event.threadID,
+            event.messageID
+          );
+        }
+
+        const candidates =
+          senderData.gender === "MALE"
+            ? users.filter(u => u.gender === "FEMALE" && u.id !== senderID)
+            : users.filter(u => u.gender === "MALE" && u.id !== senderID);
+
+        if (!candidates.length) {
+          return api.sendMessage(
+            "❌ No suitable match found.",
+            event.threadID,
+            event.messageID
+          );
+        }
+
+        const selectedMatch =
+          candidates[Math.floor(Math.random() * candidates.length)];
+
+        baseUserID = senderID;
+        matchName = selectedMatch.name;
+
+        sIdImage = await loadImage(
+          `https://graph.facebook.com/${senderID}/picture?width=720&height=720`
+        );
+        pairPersonImage = await loadImage(
+          `https://graph.facebook.com/${selectedMatch.id}/picture?width=720&height=720`
+        );
+      }
+
+      const baseUserData = await usersData.get(baseUserID);
+      const senderName = baseUserData.name;
+
+      // ===== Canvas =====
       const background = await loadImage(
         "https://i.postimg.cc/RFVB0KdS/grok-image-xang5o4.jpg"
       );
 
-      // ===== CANVAS =====
-      const width = 900;
-      const height = Math.floor(background.height * (width / background.width));
-      const canvas = createCanvas(width, height);
+      const canvas = createCanvas(background.width, background.height);
       const ctx = canvas.getContext("2d");
 
-      ctx.drawImage(background, 0, 0, width, height);
+      ctx.drawImage(background, 0, 0);
 
-      // ===== DRAW CIRCLE AVATAR =====
-      function drawCircle(img, x, y, size) {
+      // ===== Circular avatar function =====
+      const avatarSize = 240;
+
+      function drawCircleImage(ctx, img, x, y, size) {
         ctx.save();
         ctx.beginPath();
         ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+        ctx.closePath();
         ctx.clip();
         ctx.drawImage(img, x, y, size, size);
         ctx.restore();
       }
 
-      // ===== AVATAR SIZE & POSITION =====
-      const avatarSize = 240;
-      const offsetY = -height / 18; // slightly up, about 1.8 factor adjustment
+      // 👑 King (sender)
+      drawCircleImage(ctx, sIdImage, 231, 329, avatarSize);
 
-      const leftX = width * 0.09; // slightly inside left
-      const leftY = height / 2 - avatarSize / 2 + offsetY;
+      // 👑 Queen (match)
+      drawCircleImage(ctx, pairPersonImage, 717, 288, avatarSize);
 
-      const rightX = width - avatarSize - width * 0.09; // slightly inside right
-      const rightY = height / 2 - avatarSize / 2 + offsetY;
+      // ===== Save image =====
+      const outputPath = path.join(__dirname, "pair_output.png");
+      const out = fs.createWriteStream(outputPath);
+      const stream = canvas.createPNGStream();
+      stream.pipe(out);
 
-      drawCircle(avatar1, leftX, leftY, avatarSize);
-      drawCircle(avatar2, rightX, rightY, avatarSize);
-
-      // ===== SAVE IMAGE =====
-      const outputPath = path.join(__dirname, "pair.png");
-      fs.writeFileSync(outputPath, canvas.toBuffer("image/png"));
-
-      const love = Math.floor(Math.random() * 31) + 70;
-
-      // ===== SEND MESSAGE =====
-      api.sendMessage(
-        {
-          body:
-            `👑 King: ${user1.name}\n` +
-            `👑 Queen: ${user2.name}\n` +
-            `💖 Love: ${love}%`,
-          attachment: fs.createReadStream(outputPath),
-        },
-        event.threadID,
-        () => fs.unlinkSync(outputPath)
-      );
+      out.on("finish", () => {
+        const lovePercent = Math.floor(Math.random() * 31) + 70;
+        api.sendMessage(
+          {
+            body:
+              `👑 KING & QUEEN 👑\n\n` +
+              `🤴 ${senderName}\n` +
+              `👸 ${matchName}\n` +
+              `💖 Love: ${lovePercent}%`,
+            attachment: fs.createReadStream(outputPath),
+          },
+          event.threadID,
+          () => fs.unlinkSync(outputPath),
+          event.messageID
+        );
+      });
     } catch (err) {
-      api.sendMessage("❌ Error: " + err.message, event.threadID);
+      api.sendMessage(
+        "❌ Error:\n" + err.message,
+        event.threadID,
+        event.messageID
+      );
     }
   },
 };

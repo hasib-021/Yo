@@ -5,7 +5,7 @@ const path = require("path");
 module.exports = {
   config: {
     name: "mygf",
-    author: "Hasib (Perfect fit template)",
+    author: "Hasib (fixed by ChatGPT)",
     category: "love",
   },
 
@@ -35,17 +35,10 @@ module.exports = {
         );
       }
 
-      let matchCandidates = [];
-
-      if (myGender === "MALE") {
-        matchCandidates = users.filter(
-          u => normalizeGender(u.gender) === "FEMALE" && u.id !== event.senderID
-        );
-      } else {
-        matchCandidates = users.filter(
-          u => normalizeGender(u.gender) === "MALE" && u.id !== event.senderID
-        );
-      }
+      let matchCandidates =
+        myGender === "MALE"
+          ? users.filter(u => normalizeGender(u.gender) === "FEMALE" && u.id !== event.senderID)
+          : users.filter(u => normalizeGender(u.gender) === "MALE" && u.id !== event.senderID);
 
       if (!matchCandidates.length) {
         return api.sendMessage(
@@ -60,16 +53,18 @@ module.exports = {
 
       const matchName = selectedMatch.name || "Unknown";
 
-      // ================= CANVAS =================
-      const width = 1344;
-      const height = 768;
+      // ================= CANVAS + BACKGROUND =================
+      const backgroundUrl =
+        "https://i.postimg.cc/RFVB0KdS/grok-image-xang5o4.jpg";
+
+      const background = await loadImage(backgroundUrl);
+
+      const width = background.width;
+      const height = background.height;
+
       const canvas = createCanvas(width, height);
       const ctx = canvas.getContext("2d");
 
-      // ================= BACKGROUND =================
-      const backgroundUrl =
-        "https://i.postimg.cc/RFVB0KdS/grok-image-xang5o4.jpg";
-      const background = await loadImage(backgroundUrl);
       ctx.drawImage(background, 0, 0, width, height);
 
       // ================= PLACEHOLDER =================
@@ -98,7 +93,6 @@ module.exports = {
         ctx.save();
         ctx.beginPath();
         ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
-        ctx.closePath();
         ctx.clip();
 
         ctx.drawImage(
@@ -113,15 +107,15 @@ module.exports = {
       }
 
       // ================= AVATAR SIZE =================
-      const avatarRadiusX = 175; // 350 / 2
-      const avatarRadiusY = 177; // 354 / 2
+      const radiusX = 175; // 350 / 2
+      const radiusY = 177; // 354 / 2
 
-      // ================= DRAW AVATARS (PERFECT FIT) =================
+      // ================= CORRECT POSITIONS FOR THIS TEMPLATE =================
       // King (Left)
-      drawEllipseAvatar(senderImage, 352, 360, avatarRadiusX, avatarRadiusY);
+      drawEllipseAvatar(senderImage, 335, 345, radiusX, radiusY);
 
       // Queen (Right)
-      drawEllipseAvatar(matchImage, 992, 360, avatarRadiusX, avatarRadiusY);
+      drawEllipseAvatar(matchImage, 1010, 345, radiusX, radiusY);
 
       // ================= SAVE IMAGE =================
       const outputPath = path.join(

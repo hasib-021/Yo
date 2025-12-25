@@ -5,7 +5,7 @@ const path = require("path");
 module.exports = {
   config: {
     name: "mygf",
-    author: "Hasib (fixed by ChatGPT)",
+    author: "Hasib (Perfect fit template)",
     category: "love",
   },
 
@@ -35,7 +35,7 @@ module.exports = {
         );
       }
 
-      let matchCandidates =
+      const matchCandidates =
         myGender === "MALE"
           ? users.filter(u => normalizeGender(u.gender) === "FEMALE" && u.id !== event.senderID)
           : users.filter(u => normalizeGender(u.gender) === "MALE" && u.id !== event.senderID);
@@ -50,22 +50,17 @@ module.exports = {
 
       const selectedMatch =
         matchCandidates[Math.floor(Math.random() * matchCandidates.length)];
-
       const matchName = selectedMatch.name || "Unknown";
 
-      // ================= CANVAS + BACKGROUND =================
-      const backgroundUrl =
-        "https://i.postimg.cc/RFVB0KdS/grok-image-xang5o4.jpg";
-
-      const background = await loadImage(backgroundUrl);
-
-      const width = background.width;
-      const height = background.height;
-
-      const canvas = createCanvas(width, height);
+      // ================= CANVAS =================
+      const canvas = createCanvas(1344, 768);
       const ctx = canvas.getContext("2d");
 
-      ctx.drawImage(background, 0, 0, width, height);
+      // ================= BACKGROUND =================
+      const backgroundUrl =
+        "https://i.postimg.cc/RFVB0KdS/grok-image-xang5o4.jpg";
+      const background = await loadImage(backgroundUrl);
+      ctx.drawImage(background, 0, 0, 1344, 768);
 
       // ================= PLACEHOLDER =================
       const placeholderPath = path.join(__dirname, "placeholder.png");
@@ -74,10 +69,11 @@ module.exports = {
         : null;
 
       // ================= PROFILE IMAGE =================
-      async function loadProfilePic(userId) {
+      async function loadProfilePic(uid) {
         try {
-          const url = `https://graph.facebook.com/${userId}/picture?width=720&height=720`;
-          return await loadImage(url);
+          return await loadImage(
+            `https://graph.facebook.com/${uid}/picture?width=720&height=720`
+          );
         } catch {
           return placeholder;
         }
@@ -87,60 +83,44 @@ module.exports = {
       const matchImage = await loadProfilePic(selectedMatch.id);
 
       // ================= ELLIPSE AVATAR =================
-      function drawEllipseAvatar(img, centerX, centerY, radiusX, radiusY) {
+      function drawEllipseAvatar(img, cx, cy, rx, ry) {
         if (!img) return;
-
         ctx.save();
         ctx.beginPath();
-        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
         ctx.clip();
-
-        ctx.drawImage(
-          img,
-          centerX - radiusX,
-          centerY - radiusY,
-          radiusX * 2,
-          radiusY * 2
-        );
-
+        ctx.drawImage(img, cx - rx, cy - ry, rx * 2, ry * 2);
         ctx.restore();
       }
 
       // ================= AVATAR SIZE =================
-      const radiusX = 175; // 350 / 2
-      const radiusY = 177; // 354 / 2
+      const rx = 175; // 350 / 2
+      const ry = 177; // 354 / 2
 
-      // ================= CORRECT POSITIONS FOR THIS TEMPLATE =================
-      // King (Left)
-      drawEllipseAvatar(senderImage, 335, 345, radiusX, radiusY);
+      // ================= FINAL POSITIONS =================
+      drawEllipseAvatar(senderImage, 352, 520, rx, ry); // 👑 King
+      drawEllipseAvatar(matchImage, 992, 340, rx, ry); // 👑 Queen
 
-      // Queen (Right)
-      drawEllipseAvatar(matchImage, 1010, 345, radiusX, radiusY);
-
-      // ================= SAVE IMAGE =================
+      // ================= SAVE =================
       const outputPath = path.join(
         __dirname,
         `pair_${event.senderID}_${Date.now()}.png`
       );
+      await fs.promises.writeFile(outputPath, canvas.toBuffer());
 
-      const buffer = canvas.toBuffer("image/png");
-      await fs.promises.writeFile(outputPath, buffer);
-
-      // ================= LOVE PERCENT =================
-      const base = 60 + Math.floor(Math.random() * 20);
-      const nameBonus = Math.min(20, senderName.length + matchName.length);
-      const lovePercent = Math.min(100, base + nameBonus);
-
-      const message =
-        `🥰 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹 𝗽𝗮𝗶𝗿𝗶𝗻𝗴\n` +
-        `・${senderName} 👑\n` +
-        `・${matchName} 👑\n` +
-        `💌 𝗪𝗶𝘀𝗵 𝘆𝗼𝘂 𝘁𝘄𝗼 𝗵𝘂𝗻𝗱𝗿𝗲𝗱 𝘆𝗲𝗮𝗿𝘀 𝗼𝗳 𝗵𝗮𝗽𝗽𝗶𝗻𝗲𝘀𝘀 ❤️\n` +
-        `💖 𝗟𝗼𝘃𝗲 𝗣𝗲𝗿𝗰𝗲𝗻𝘁𝗮𝗴𝗲: ${lovePercent}%`;
+      // ================= MESSAGE =================
+      const lovePercent = Math.min(
+        100,
+        60 + Math.floor(Math.random() * 20) + senderName.length + matchName.length
+      );
 
       api.sendMessage(
         {
-          body: message,
+          body:
+            `🥰 Successful pairing\n` +
+            `・${senderName} 👑\n` +
+            `・${matchName} 👑\n` +
+            `💖 Love Percentage: ${lovePercent}%`,
           attachment: fs.createReadStream(outputPath),
         },
         event.threadID,

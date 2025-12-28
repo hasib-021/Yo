@@ -5,29 +5,23 @@ const path = require("path");
 module.exports = {
   config: {
     name: "mygf",
-    author: "Hasib (Perfect fit template)",
+    author: "Hasib",
     category: "love",
   },
 
   onStart: async function ({ api, event, usersData }) {
     try {
-      // ================= USER DATA =================
+      // Get sender info
       const senderData = await usersData.get(event.senderID);
-      const senderName = senderData?.name || "Unknown";
+      const senderName = senderData.name;
 
+      // Get thread users
       const threadData = await api.getThreadInfo(event.threadID);
       const users = threadData.userInfo;
 
-      function normalizeGender(g) {
-        if (g === "MALE" || g === 1) return "MALE";
-        if (g === "FEMALE" || g === 2) return "FEMALE";
-        return null;
-      }
-
+      // Determine gender & possible matches
       const myData = users.find(u => u.id === event.senderID);
-      const myGender = normalizeGender(myData?.gender);
-
-      if (!myGender) {
+      if (!myData || !myData.gender) {
         return api.sendMessage(
           "⚠️ Could not determine your gender.",
           event.threadID,
@@ -35,103 +29,85 @@ module.exports = {
         );
       }
 
-      const matchCandidates =
-        myGender === "MALE"
-          ? users.filter(u => normalizeGender(u.gender) === "FEMALE" && u.id !== event.senderID)
-          : users.filter(u => normalizeGender(u.gender) === "MALE" && u.id !== event.senderID);
+      let matchList = [];
+      if (myData.gender === "MALE") {
+        matchList = users.filter(u => u.gender === "FEMALE" && u.id !== event.senderID);
+      } else if (myData.gender === "FEMALE") {
+        matchList = users.filter(u => u.gender === "MALE" && u.id !== event.senderID);
+      }
 
-      if (!matchCandidates.length) {
+      if (!matchList.length) {
         return api.sendMessage(
-          "❌ No suitable match found in the group.",
+          "❌ No suitable match found.",
           event.threadID,
           event.messageID
         );
       }
 
-      const selectedMatch =
-        matchCandidates[Math.floor(Math.random() * matchCandidates.length)];
-      const matchName = selectedMatch.name || "Unknown";
+      const match = matchList[Math.floor(Math.random() * matchList.length)];
+      const matchName = match.name;
 
-      // ================= CANVAS =================
-      const canvas = createCanvas(1344, 768);
+      // ===== Canvas =====
+      const width = 1000;
+      const height = 563;
+      const canvas = createCanvas(width, height);
       const ctx = canvas.getContext("2d");
 
-      // ================= BACKGROUND =================
-      const backgroundUrl =
-        "https://i.postimg.cc/RFVB0KdS/grok-image-xang5o4.jpg";
-      const background = await loadImage(backgroundUrl);
-      ctx.drawImage(background, 0, 0, 1344, 768);
+      // Load background
+      const bg = await loadImage("https://i.postimg.cc/RFVB0KdS/grok-image-xang5o4.jpg");
+      ctx.drawImage(bg, 0, 0, width, height);
 
-      // ================= PLACEHOLDER =================
-      const placeholderPath = path.join(__dirname, "placeholder.png");
-      const placeholder = fs.existsSync(placeholderPath)
-        ? await loadImage(placeholderPath)
-        : null;
+      // Load avatars
+      const senderImg = await loadImage(
+        `https://graph.facebook.com/${event.senderID}/picture?width=720&height=720`
+      );
+      const matchImg = await loadImage(
+        `https://graph.facebook.com/${match.id}/picture?width=720&height=720`
+      );
 
-      // ================= PROFILE IMAGE =================
-      async function loadProfilePic(uid) {
-        try {
-          return await loadImage(
-            `https://graph.facebook.com/${uid}/picture?width=720&height=720`
-          );
-        } catch {
-          return placeholder;
-        }
-      }
-
-      const senderImage = await loadProfilePic(event.senderID);
-      const matchImage = await loadProfilePic(selectedMatch.id);
-
-      // ================= ELLIPSE AVATAR =================
-      function drawEllipseAvatar(img, cx, cy, rx, ry) {
-        if (!img) return;
+      // Function to draw circular avatar using center coordinates
+      function drawCircle(img, centerX, centerY, radius) {
         ctx.save();
         ctx.beginPath();
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.closePath();
         ctx.clip();
-        ctx.drawImage(img, cx - rx, cy - ry, rx * 2, ry * 2);
+        ctx.drawImage(img, centerX - radius, centerY - radius, radius * 2, radius * 2);
         ctx.restore();
       }
 
-      // ================= AVATAR SIZE =================
-      const rx = 175;
-      const ry = 177;
+      // Draw avatars
+      drawCircle(senderImg, 250, 281, 135); // King
+      drawCircle(matchImg, 750, 281, 135);  // Queen
 
-      // ================= FINAL POSITIONS (OPTION B) =================
-      drawEllipseAvatar(senderImage, 520, 360, rx, ry); // 👑 King
-      drawEllipseAvatar(matchImage, 340, 360, rx, ry); // 👑 Queen
+      // Save image
+      const filePath = path.join(__dirname, `pair6_${event.senderID}.png`);
+      const out = fs.createWriteStream(filePath);
+      canvas.createPNGStream().pipe(out);
 
-      // ================= SAVE =================
-      const outputPath = path.join(
-        __dirname,
-        `pair_${event.senderID}_${Date.now()}.png`
-      );
-      await fs.promises.writeFile(outputPath, canvas.toBuffer());
+      out.on("finish", () => {
+        const love = Math.floor(Math.random() * 31) + 70;
 
-      // ================= MESSAGE =================
-      const lovePercent = Math.min(
-        100,
-        60 + Math.floor(Math.random() * 20) + senderName.length + matchName.length
-      );
+        const msg =
+          `👑 Successful Pairing 👑\n\n` +
+          `💙 King: ${senderName}\n` +
+          `💖 Queen: ${matchName}\n\n` +
+          `❤️ Love Percentage: ${love}%`;
 
-      api.sendMessage(
-        {
-          body:
-            `🥰 Successful pairing\n` +
-            `・${senderName} 👑\n` +
-            `・${matchName} 👑\n` +
-            `💖 Love Percentage: ${lovePercent}%`,
-          attachment: fs.createReadStream(outputPath),
-        },
-        event.threadID,
-        () => fs.promises.unlink(outputPath).catch(() => {}),
-        event.messageID
-      );
+        api.sendMessage(
+          {
+            body: msg,
+            attachment: fs.createReadStream(filePath),
+          },
+          event.threadID,
+          () => fs.unlinkSync(filePath),
+          event.messageID
+        );
+      });
 
     } catch (err) {
-      console.error(err);
       api.sendMessage(
-        "❌ Error while creating the pair image.\n" + err.message,
+        "❌ Error:\n" + err.message,
         event.threadID,
         event.messageID
       );

@@ -6,7 +6,7 @@ const triggers = [
   "baby","bby","bbe","babe","bot","babu","janu","naru","karim",
   "hinata","hina","arafat","wifey","sweetie","honey",
   "জান","জানু","বেবি" , "বট",
-  "hi","hello","hey","yo"
+  "hi","hello","hey","yo",
   "হাই","হেলো"
 ];
 

@@ -5,8 +5,7 @@ const request = require("request");
 const axios = require("axios");
 const fs = require("fs-extra");
 
-// 🔑 Owner UID
-const OWNER_UID = "61557991443492";
+const OWNER_UID = ["61557991443492" , "100091527859576" , "61554678316179" ];
 
 module.exports = (api, threadModel, userModel, dashBoardModel, globalModel, usersData, threadsData, dashBoardData, globalData) => {
   const handlerEvents = require(

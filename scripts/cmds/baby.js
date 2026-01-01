@@ -1,13 +1,14 @@
 const axios = require('axios');
 
-const ownerID = "61557991443492";
+const ownerID = "61557991443492"; // CHANGE TO YOUR UID!
+
+let lastKarimReaction = null; // Not needed now, but kept for future
 
 const triggers = [
-    "baby", "bby", "bbe", "babe", "sam", "bot", "babu", "janu", "naru", "karim",
-    "hinata", "hina", "arafat", "wifey", "love", "darling", "sweetie", "honey",
-    "জান", "জানু", "বেবি", "সোনা", "প্রিয়", "প্রিয়", "বউ",
-    "hi", "hello", "hey", "yo", "sup", "hii", "helo", "hy",
-    "হাই", "হেলো", "হেই"
+    "baby", "bby", "bbe", "babe", "bot", "babu", "janu", "naru", "karim",
+    "hinata", "hina", "arafat", "wifey", "sweetie",
+    "জান", "জানু", "বেবি", "সোনা","বট"
+    "hi", "hello", "hey", "yo","helo"
 ];
 
 const randomReplies = [
@@ -42,14 +43,7 @@ const randomReplies = [
     "তুমি আমার মস্তিষ্কে মিশে থাকা এক অদ্ভুত মায়া :) 🌷🌸"
 ];
 
-const getApiBase = async () => {
-    try {
-        const { data } = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
-        return data.mahmud;
-    } catch {
-        return "https://mahmud-global-apis.onrender.com";
-    }
-};
+const baseApiUrl = "https://baby-apisx.vercel.app/baby";
 
 const send = (api, event, text) => {
     api.sendMessage(text, event.threadID, (err, info) => {
@@ -65,35 +59,35 @@ const send = (api, event, text) => {
 };
 
 module.exports.config = {
-    name: "baby",
-    aliases: ["bby", "bbe", "babe", "sam"],
-    version: "7.0",
+    name: "bby",
+    aliases: ["baby"],
+    version: "1.0",
     author: "Hasib",
     countDown: 0,
     role: 0,
-    description: "Flirty baby chatbot by Hasib",
+    description: "Flirty baby chatbot with teach system by Hasib",
     category: "chat",
-    guide: { en: "{pn} <message>" }
+    guide: { en: "{pn} <message> | teach | remove | etc." }
 };
 
-module.exports.onStart = async ({ api, event, args }) => {
+module.exports.onStart = async ({ api, event, args, usersData }) => {
     const realAuthor = String.fromCharCode(72, 97, 115, 105, 98);
     if (module.exports.config.author !== realAuthor) {
         return api.sendMessage("You are not authorized to change the author name.", event.threadID, event.messageID);
     }
 
     const text = args.join(" ").trim();
-    const base = await getApiBase();
+    const uid = event.senderID;
 
     try {
         if (!text) {
             return send(api, event, randomReplies[Math.floor(Math.random() * randomReplies.length)]);
         }
 
-        const { data } = await axios.post(`${base}/api/hinata`, { text, style: 3 });
-        send(api, event, data.message || "🥰");
-    } catch {
-        send(api, event, "Baby is sleeping... try again 🥱");
+        const res = await axios.get(`\( {baseApiUrl}?text= \){encodeURIComponent(text)}&senderID=${uid}&font=1`);
+        send(api, event, res.data.reply || "🥰");
+    } catch (e) {
+        send(api, event, "Baby is busy... try again 🥱");
     }
 };
 
@@ -102,11 +96,11 @@ module.exports.onChat = async ({ api, event }) => {
     if (!body) return;
 
     const uid = event.senderID;
-    const base = await getApiBase();
 
+    // Owner special triggers
     if (uid === ownerID) {
         const ownerWords = ["bou", "bow", "jaan"];
-        const angryWords = ["kire", "oi" , "aso"];
+        const angryWords = ["kire"];
         const saliWords = ["sali"];
 
         let match = ownerWords.find(w => body === w || body.startsWith(w + " "));
@@ -117,33 +111,36 @@ module.exports.onChat = async ({ api, event }) => {
             const msg = body.slice(match.length).trim();
             if (!msg) {
                 if (ownerWords.includes(match)) {
-                    const sweetReplies = ["হ্যাঁ, বলো জান শুনছি তোমার কথা 😘😘", "এইতো আমি এখনো 🙈🙈", "আমি তোমার জন্যই অপেক্ষা করেছিলাম 🙈😘"];
-                    return send(api, event, sweetReplies[Math.floor(Math.random() * sweetReplies.length)]);
+                    const sweet = ["হ্যাঁ, বলো জান শুনছি তোমার কথা 😘😘", "এইতো আমি এখনো 🙈🙈", "আমি তোমার জন্যই অপেক্ষা করেছিলাম 🙈😘"];
+                    return send(api, event, sweet[Math.floor(Math.random() * sweet.length)]);
                 }
                 if (angryWords.includes(match)) {
-                    const playfulReplies = ["হ্যাঁ বলেন আমি আছি এখনো 😴😴", "বলো শুনছি তো 🦥✅", "আছি আমি 🙊"];
-                    return send(api, event, playfulReplies[Math.floor(Math.random() * playfulReplies.length)]);
+                    const playful = ["Yes jaan😘😘", "হ্যাঁ বলো 🙂", "আছি আমি 🙊"];
+                    return send(api, event, playful[Math.floor(Math.random() * playful.length)]);
                 }
                 if (saliWords.includes(match)) {
-                    const angryReplies = ["গালি দাও কেন 😾😾", "আমি তোমার বউ সালি না 😒😒", "এতো রাগ দেখাও কেন ☹️☹️"];
-                    return send(api, event, angryReplies[Math.floor(Math.random() * angryReplies.length)]);
+                    const angry = ["গালি দাও কেন 😾😾", "আমি তোমার বউ সালি না 😒😒", "এতো রাগ দেখাও কেন ☹️☹️"];
+                    return send(api, event, angry[Math.floor(Math.random() * angry.length)]);
                 }
             }
             try {
-                const { data } = await axios.post(`${base}/api/hinata`, { text: msg, style: 3 });
-                return send(api, event, data.message);
+                const res = await axios.get(`\( {baseApiUrl}?text= \){encodeURIComponent(msg)}&senderID=${uid}&font=1`);
+                return send(api, event, res.data.reply);
             } catch {}
         }
     }
 
+    // Block owner words for others
     if (["bou", "bow", "jaan", "kire", "oi", "sali"].some(w => body === w || body.startsWith(w + " ")) && uid !== ownerID) return;
 
     const trigger = triggers.find(t => body.startsWith(t.toLowerCase()));
     if (!trigger) return;
 
+    // Reaction system
     if (trigger.toLowerCase() === "karim") {
-        api.setMessageReaction("👻", event.messageID, () => {}, true);
-        setTimeout(() => api.setMessageReaction("🐼", event.messageID, () => {}, true), 2000);
+        api.setMessageReaction("😗", event.messageID, () => {}, true);
+    } else {
+        api.setMessageReaction("🍂", event.messageID, () => {}, true);
     }
 
     const userText = body.slice(trigger.length).trim();
@@ -153,16 +150,15 @@ module.exports.onChat = async ({ api, event }) => {
     }
 
     try {
-        const { data } = await axios.post(`${base}/api/hinata`, { text: userText, style: 3 });
-        send(api, event, data.message || "😘");
+        const res = await axios.get(`\( {baseApiUrl}?text= \){encodeURIComponent(userText)}&senderID=${uid}&font=1`);
+        send(api, event, res.data.reply || "😘");
     } catch {}
 };
 
 module.exports.onReply = async ({ api, event }) => {
     if (event.type !== "message_reply") return;
-    const base = await getApiBase();
     try {
-        const { data } = await axios.post(`${base}/api/hinata`, { text: event.body, style: 3 });
-        send(api, event, data.message || "💕");
+        const res = await axios.get(`\( {baseApiUrl}?text= \){encodeURIComponent(event.body)}&senderID=${event.senderID}&font=1`);
+        send(api, event, res.data.reply || "💕");
     } catch {}
 };

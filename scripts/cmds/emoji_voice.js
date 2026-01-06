@@ -4,7 +4,7 @@ const path = require("path");
 
 module.exports = {
   config: {
-    name: "emojivoice",
+    name: "emoji_voice",
     version: "10.0",
     author: "Hasib ",
     countDown: 5,

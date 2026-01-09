@@ -8,15 +8,16 @@ const baseUrl = "https://raw.githubusercontent.com/Saim12678/Saim69/1a8068d7d283
 module.exports = {
   config: {
     name: "pair4",
-    author: "Saimx69x",
-    category: "love",
+    aliases: ["lovepair2", "match2"],
+    author: "Hasib",
     version: "1.0",
     role: 0,
+    category: "love",
     shortDescription: {
-      en: "💘 Generate a love match between you and another group member"
+      en: "💞 Generate a love match with avatars"
     },
     longDescription: {
-      en: "This command calculates a love match between you and a suitable member of the current group based on gender. Shows circular avatars, background, and love percentage."
+      en: "This command calculates a love match between you and a suitable member of the current group. Shows circular avatars, background, converted names with stylish fonts, and love percentage."
     },
     guide: {
       en: "{p}{n} — Use this command in a group to find a love match"
@@ -25,9 +26,11 @@ module.exports = {
 
   onStart: async function ({ api, event, usersData }) {
     try {
+      
       const senderData = await usersData.get(event.senderID);
       let senderName = senderData.name;
 
+      // Get thread users
       const threadData = await api.getThreadInfo(event.threadID);
       const users = threadData.userInfo;
 
@@ -73,7 +76,7 @@ module.exports = {
       const canvas = createCanvas(width, height);
       const ctx = canvas.getContext("2d");
 
-      const background = await loadImage("https://files.catbox.moe/g6lr9y.jpg");
+      const background = await loadImage("https://files.catbox.moe/4l3pgh.jpg");
       ctx.drawImage(background, 0, 0, width, height);
 
       const sIdImage = await loadImage(
@@ -84,8 +87,8 @@ module.exports = {
       );
 
       const avatarPositions = {
-        sender: { x: 131, y: 128, size: 154 },
-        partner: { x: width - 302, y: 128, size: 154 },
+        sender: { x: 64, y: 111, size: 123 },
+        partner: { x: width - 499, y: 111, size: 123 },
       };
 
       function drawCircle(ctx, img, x, y, size) {
@@ -119,7 +122,10 @@ module.exports = {
 💘 𝙲𝚘𝚖𝚙𝚊𝚝𝚒𝚋𝚒𝚕𝚒𝚝𝚢: ${lovePercent}% 💘`;
 
         api.sendMessage(
-          { body: message, attachment: fs.createReadStream(outputPath) },
+          {
+            body: message,
+            attachment: fs.createReadStream(outputPath),
+          },
           event.threadID,
           () => fs.unlinkSync(outputPath),
           event.messageID
@@ -131,3 +137,4 @@ module.exports = {
     }
   },
 };
+    

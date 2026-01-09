@@ -6,6 +6,7 @@ module.exports = {
   config: {
     name: "mygf",
     author: "Hasib",
+    aliases: "mybf",
     category: "TOOLS",
   },
 

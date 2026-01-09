@@ -7,7 +7,7 @@ module.exports = {
     name: ["mygf"],
     author: "Hasib",
     aliases: "mybf",
-    category: "TOOLS",
+    category: "love",
   },
 
   onStart: async function ({ api, event, usersData }) {

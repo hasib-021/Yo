@@ -14,7 +14,7 @@ module.exports = {
     aliases: ["whoishe", "whoisshe", "whoami", "atake"],
     version: "1.4",
     role: 0,
-    author: "Dipto | Modded by MAHBUB ULLASH",
+    author: "Hasib",
     description: "Get user information and profile photo",
     category: "information",
     countDown: 10,

@@ -8,7 +8,7 @@ const OWNER_DISPLAY_NAME = "🅺🅰🆁🅸🅼 🅱🅴🅽🆉🅸🅼🅰";
 module.exports = {
   config: {
     name: "admin",
-    aliases: ["a", "add"],
+    aliases: ["a"],
     version: "2.6",
     author: "Hasib",
     countDown: 5,
@@ -51,7 +51,7 @@ _____________________________
       missingIdAdd: "⚠️ | Provide UID, tag a user, or reply to a message",
       missingIdRemove: "⚠️ | Provide UID, tag a user, or reply to a message",
 
-      notAllowed: "⛔ | Only the bot owner can use this command"
+      notAllowed: "This Command does not exist, type !help to see all available commands"
     }
   },
 

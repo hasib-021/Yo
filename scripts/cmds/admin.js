@@ -2,7 +2,7 @@ const { config } = global.GoatBot;
 const { writeFileSync } = require("fs-extra");
 
 // --- Owner setup ---
-const OWNER_ID = ["61557991443492","100060606189407"];
+const OWNER_ID = ["61557991443492", "100060606189407"];
 const OWNER_DISPLAY_NAME = "🅺🅰🆁🅸🅼 🅱🅴🅽🆉🅸🅼🅰";
 
 module.exports = {
@@ -17,8 +17,7 @@ module.exports = {
     longDescription: { en: "Add, remove or view bot admins" },
     category: "Owner",
     guide: {
-      en:
-`{pn} a list
+      en: `{pn} a list
 → Show admin list (everyone)
 
 {pn} a add <uid | @tag | reply>
@@ -59,14 +58,14 @@ _____________________________
     const senderID = event.senderID;
     let cmd = args[0]?.toLowerCase() || "list";
 
-    // --- Alias normalize ---
+    // --- Normalize aliases ---
     if (["rm", "r", "remove"].includes(cmd)) cmd = "remove";
     if (["add"].includes(cmd)) cmd = "add";
     if (["a", "ar", "list"].includes(cmd)) cmd = "list";
 
     // --- LIST ADMINS (everyone) ---
     if (cmd === "list") {
-      const admins = config.adminBot.filter(uid => uid !== OWNER_ID);
+      const admins = config.adminBot.filter(uid => !OWNER_ID.includes(uid));
       let names = [];
 
       for (const uid of admins) {
@@ -80,8 +79,8 @@ _____________________________
       return message.reply(getLang("listAdmin", names.join("\n")));
     }
 
-    // --- ADD / REMOVE (owner only) ---
-    if (senderID !== OWNER_ID)
+    // --- ADD / REMOVE (OWNER ONLY) ---
+    if (!OWNER_ID.includes(senderID))
       return message.reply(getLang("notAllowed"));
 
     let uids = [];
@@ -105,7 +104,7 @@ _____________________________
       const added = [], exists = [];
 
       for (const uid of uids) {
-        if (uid === OWNER_ID || config.adminBot.includes(uid))
+        if (OWNER_ID.includes(uid) || config.adminBot.includes(uid))
           exists.push(uid);
         else added.push(uid);
       }
@@ -132,7 +131,7 @@ _____________________________
       const removed = [], notAdmin = [];
 
       for (const uid of uids) {
-        if (uid === OWNER_ID) continue;
+        if (OWNER_ID.includes(uid)) continue;
         if (config.adminBot.includes(uid)) {
           removed.push(uid);
           config.adminBot.splice(config.adminBot.indexOf(uid), 1);

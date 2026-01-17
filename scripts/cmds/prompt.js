@@ -1,46 +1,73 @@
 const axios = require("axios");
 
-const mahmud = async () => {
-  const base = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
-  return base.data.mahmud;
-};
+const configUrl = "https://raw.githubusercontent.com/aryannix/stuffs/master/raw/apis.json";
 
 module.exports = {
   config: {
     name: "prompt",
     aliases: ["p"],
-    version: "1.7",
-    author: "MahMUD",
+    version: "0.0.1",
+    role: 0,
+    author: "Hasib",
     category: "ai",
-    guide: {
-      en: "{pn} reply with an image",
-    },
+    cooldowns: 5,
+    guide: { en: "Reply to an image to generate Midjourney prompt" }
   },
 
-  onStart: async function ({ api, args, event }) {
-    const obfuscatedAuthor = String.fromCharCode(77, 97, 104, 77, 85, 68);   if (module.exports.config.author !== obfuscatedAuthor) {  return api.sendMessage("You are not authorized to change the author name.", event.threadID, event.messageID);   }
-    const apiUrl = `${await mahmud()}/api/prompt`;
-    let prompt = args.join(" ") || "Describe this image";
+  onStart: async ({ api, event }) => {
+    const { threadID, messageID, messageReply } = event;
 
-    if (event.type === "message_reply" && event.messageReply.attachments[0]?.type === "photo") {
-      try {
-        const response = await axios.post(apiUrl, {
-          imageUrl: event.messageReply.attachments[0].url,
-          prompt
-        }, {
-          headers: { "Content-Type": "application/json", "author": module.exports.config.author }
-        });
-
-        const reply = response.data.error || response.data.response || "No response";
-        api.sendMessage(reply, event.threadID, event.messageID);
-        return api.setMessageReaction("🪽", event.messageID, () => {}, true);
-
-      } catch (error) {
-        api.sendMessage("moye moye🥹", event.threadID, event.messageID);
-        return api.setMessageReaction("❌", event.messageID, () => {}, true);
-      }
+    let baseApi;
+    try {
+      const configRes = await axios.get(configUrl);
+      baseApi = configRes.data && configRes.data.api;
+      if (!baseApi) throw new Error("Configuration Error: Missing API in GitHub JSON.");
+    } catch (error) {
+      return api.sendMessage("❌ Failed to fetch API configuration from GitHub.", threadID, messageID);
     }
 
-    api.sendMessage("Please reply with an image.", event.threadID, event.messageID);
+    if (
+      !messageReply ||
+      !messageReply.attachments ||
+      messageReply.attachments.length === 0 ||
+      !messageReply.attachments[0].url
+    ) {
+      return api.sendMessage("Please reply to an image.", threadID, messageID);
+    }
+
+    try {
+      api.setMessageReaction("⏰", messageID, () => {}, true);
+
+      const imageUrl = messageReply.attachments[0].url;
+      const apiUrl = `${baseApi}/promptv2`;
+
+      const apiResponse = await axios.get(apiUrl, {
+        params: { imageUrl }
+      });
+
+      const result = apiResponse.data;
+
+      if (!result.success) {
+        throw new Error(result.message || "Prompt API failed.");
+      }
+
+      const promptText = result.prompt || "No prompt returned.";
+
+      await api.sendMessage(
+        { body: `${promptText}` },
+        threadID,
+        messageID
+      );
+
+      api.setMessageReaction("✅", messageID, () => {}, true);
+    } catch (e) {
+      api.setMessageReaction("❌", messageID, () => {}, true);
+
+      let msg = "Error while generating prompt.";
+      if (e.response?.data?.error) msg = e.response.data.error;
+      else if (e.message) msg = e.message;
+
+      api.sendMessage(msg, threadID, messageID);
+    }
   }
 };

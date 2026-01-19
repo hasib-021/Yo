@@ -1,4 +1,4 @@
-!cmd install pending.js module.exports = {
+module.exports = {
   config: {
     name: "pending",
     aliases:["pen"],

@@ -1,17 +1,13 @@
 module.exports = {
   config: {
     name: "pending",
-    aliases:["pen"],
-    version: "1.2",
-    author: "Hasib",
+    aliases: ["pen"],
+    version: "1.3",
+    author: "Hasib (fixed)",
     countDown: 5,
-    role: 2, // 🔐 BOT ADMIN ONLY
-    shortDescription: {
-      en: "Manage pending group approvals"
-    },
-    longDescription: {
-      en: "View, approve or reject groups waiting to add the bot"
-    },
+    role: 2,
+    shortDescription: { en: "Manage pending group approvals" },
+    longDescription: { en: "View, approve or reject groups waiting to add the bot" },
     category: "Admin",
     guide: {
       en: {
@@ -26,16 +22,15 @@ module.exports = {
 
   langs: {
     en: {
-      invaildNumber: "❌ %1 is not a valid number",
-      cancelSuccess: "✅ Refused %1 group(s)!",
+      invalidNumber: "❌ %1 is not a valid number",
+      cancelSuccess: "❌ Rejected %1 group(s)!",
       approveSuccess: "✅ Approved %1 group(s)!",
       cantGetPendingList: "❌ Can't get pending list!",
       returnListPending:
         "📋 「PENDING GROUPS」\n" +
-        " Total: %1\n" +
-        " Reply numbers to approve\n" +
-        " Use c<number> to reject\n" +
-        " Example: 1 2 | c1 c2\n\n%2",
+        "Total: %1\n" +
+        "Reply numbers to approve\n" +
+        "Use c<number> to reject\n\n%2",
       returnListClean: "📭 No pending groups found"
     }
   },
@@ -47,20 +42,17 @@ module.exports = {
     const body = event.body.trim().toLowerCase();
     let count = 0;
 
-    // ❌ CANCEL MODE
+    // ❌ REJECT
     if (body.startsWith("c")) {
       const nums = body.replace(/^c/, "").split(/\s+/);
 
       for (const n of nums) {
         const index = parseInt(n);
         if (!index || index < 1 || index > Reply.pending.length)
-          return api.sendMessage(getLang("invaildNumber", n), event.threadID);
+          return api.sendMessage(getLang("invalidNumber", n), event.threadID);
 
         try {
-          await api.removeUserFromGroup(
-            api.getCurrentUserID(),
-            Reply.pending[index - 1].threadID
-          );
+          await api.leaveGroup(Reply.pending[index - 1].threadID);
           count++;
         } catch (e) {
           console.error(e);
@@ -70,33 +62,23 @@ module.exports = {
       return api.sendMessage(getLang("cancelSuccess", count), event.threadID);
     }
 
-    // ✅ APPROVE MODE
+    // ✅ APPROVE
     const nums = body.split(/\s+/);
     for (const n of nums) {
       const index = parseInt(n);
       if (!index || index < 1 || index > Reply.pending.length)
-        return api.sendMessage(getLang("invaildNumber", n), event.threadID);
+        return api.sendMessage(getLang("invalidNumber", n), event.threadID);
 
       const targetThread = Reply.pending[index - 1].threadID;
 
       try {
+        await api.addUserToGroup(api.getCurrentUserID(), targetThread);
+
         const info = await api.getThreadInfo(targetThread);
-        const time = new Date().toLocaleString("en-BD", {
-          timeZone: "Asia/Dhaka"
-        });
-
         api.sendMessage(
-`╔═══════✦❖༺❖✦══════╗
-┃➥ GROUP: ${info.threadName || "Unnamed"}
-┃➥ ID: ${targetThread}
-┃➥ MEMBERS: ${info.participantIDs.length}
-┃➥ APPROVAL: ${info.approvalMode ? "ON" : "OFF"}
-┃➥ EMOJI: ${info.emoji || "NONE"}
-┃➥ JOINED: ${time}
-┃➥ BOT OWNER: Shin-chan
-╚═══════✦❖༺❖✦══════╝
-
-✅ Bot is now active in this group!`,
+`✅ Bot approved successfully!
+👥 Group: ${info.threadName || "Unnamed"}
+👤 Members: ${info.participantIDs.length}`,
           targetThread
         );
 
@@ -111,17 +93,12 @@ module.exports = {
 
   // ================== ON START ==================
   onStart: async ({ api, event, getLang, commandName }) => {
-    const { threadID, senderID } = event;
-
-    // 🔐 Bot-admin permission already handled by role: 2
-
     try {
-      const spam = await api.getThreadList(100, null, ["OTHER"]);
-      const pending = await api.getThreadList(100, null, ["PENDING"]);
-      const list = [...spam, ...pending].filter(t => t.isGroup);
+      const pending = await api.getThreadList(500, null, ["PENDING"]);
+      const list = pending.filter(t => t.isGroup);
 
       if (!list.length)
-        return api.sendMessage(getLang("returnListClean"), threadID);
+        return api.sendMessage(getLang("returnListClean"), event.threadID);
 
       let msg = "";
       list.forEach((g, i) => {
@@ -130,12 +107,12 @@ module.exports = {
 
       api.sendMessage(
         getLang("returnListPending", list.length, msg),
-        threadID,
+        event.threadID,
         (err, info) => {
           if (!err) {
             global.GoatBot.onReply.set(info.messageID, {
               commandName,
-              author: senderID,
+              author: event.senderID,
               pending: list
             });
           }
@@ -143,7 +120,7 @@ module.exports = {
       );
     } catch (e) {
       console.error(e);
-      api.sendMessage(getLang("cantGetPendingList"), threadID);
+      api.sendMessage(getLang("cantGetPendingList"), event.threadID);
     }
   }
 };

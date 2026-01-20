@@ -2,125 +2,154 @@ module.exports = {
   config: {
     name: "pending",
     aliases: ["pen"],
-    version: "1.3",
-    author: "Hasib (fixed)",
+    version: "2.0",
+    author: "Hasib",
     countDown: 5,
     role: 2,
-    shortDescription: { en: "Manage pending group approvals" },
-    longDescription: { en: "View, approve or reject groups waiting to add the bot" },
+    shortDescription: {
+      en: "Manage pending group approvals"
+    },
+    longDescription: {
+      en: "Only bot config admins can approve or reject pending groups"
+    },
     category: "Admin",
     guide: {
       en: {
         body:
           "{pn} → View pending groups\n" +
-          "Reply numbers → Approve\n" +
-          "Reply c<number> → Reject\n" +
-          "Example: 1 2 | c1 c2"
+          "Reply with number(s) to approve\n" +
+          "Reply with c + number(s) to reject"
       }
     }
   },
 
   langs: {
     en: {
+      noPermission: "🚫 Only bot admins can use this command!",
       invalidNumber: "❌ %1 is not a valid number",
-      cancelSuccess: "❌ Rejected %1 group(s)!",
-      approveSuccess: "✅ Approved %1 group(s)!",
-      cantGetPendingList: "❌ Can't get pending list!",
-      returnListPending:
-        "📋 「PENDING GROUPS」\n" +
-        "Total: %1\n" +
-        "Reply numbers to approve\n" +
-        "Use c<number> to reject\n\n%2",
-      returnListClean: "📭 No pending groups found"
+      approved: "✅ Approved %1 group(s)!",
+      rejected: "❌ Rejected %1 group(s)!",
+      noPending: "📭 No pending groups found.",
+      error: "❌ Failed to get pending list."
     }
   },
 
-  // ================== ON REPLY ==================
-  onReply: async ({ api, event, Reply, getLang }) => {
-    if (event.senderID !== Reply.author) return;
+  // ================= REPLY HANDLER =================
+  onReply: async function ({ api, event, Reply, getLang }) {
+    if (String(event.senderID) !== String(Reply.author)) return;
 
-    const body = event.body.trim().toLowerCase();
+    const { body, threadID, messageID } = event;
     let count = 0;
 
     // ❌ REJECT
-    if (body.startsWith("c")) {
-      const nums = body.replace(/^c/, "").split(/\s+/);
+    if (body.toLowerCase().startsWith("c")) {
+      const nums = body.slice(1).trim().split(/\s+/);
 
       for (const n of nums) {
-        const index = parseInt(n);
-        if (!index || index < 1 || index > Reply.pending.length)
-          return api.sendMessage(getLang("invalidNumber", n), event.threadID);
+        if (isNaN(n) || n < 1 || n > Reply.pending.length)
+          return api.sendMessage(
+            getLang("invalidNumber", n),
+            threadID,
+            messageID
+          );
 
         try {
-          await api.leaveGroup(Reply.pending[index - 1].threadID);
+          api.removeUserFromGroup(
+            api.getCurrentUserID(),
+            Reply.pending[n - 1].threadID
+          );
           count++;
-        } catch (e) {
-          console.error(e);
-        }
+        } catch {}
       }
 
-      return api.sendMessage(getLang("cancelSuccess", count), event.threadID);
+      return api.sendMessage(
+        getLang("rejected", count),
+        threadID,
+        messageID
+      );
     }
 
     // ✅ APPROVE
-    const nums = body.split(/\s+/);
-    for (const n of nums) {
-      const index = parseInt(n);
-      if (!index || index < 1 || index > Reply.pending.length)
-        return api.sendMessage(getLang("invalidNumber", n), event.threadID);
+    const nums = body.trim().split(/\s+/);
 
-      const targetThread = Reply.pending[index - 1].threadID;
+    for (const n of nums) {
+      if (isNaN(n) || n < 1 || n > Reply.pending.length)
+        return api.sendMessage(
+          getLang("invalidNumber", n),
+          threadID,
+          messageID
+        );
 
       try {
-        await api.addUserToGroup(api.getCurrentUserID(), targetThread);
+        const tid = Reply.pending[n - 1].threadID;
 
-        const info = await api.getThreadInfo(targetThread);
+        // ONLY SEND NOTIFICATION
         api.sendMessage(
-`✅ Bot approved successfully!
-👥 Group: ${info.threadName || "Unnamed"}
-👤 Members: ${info.participantIDs.length}`,
-          targetThread
+          "✅ Bot is now active in this group",
+          tid
         );
 
         count++;
-      } catch (e) {
-        console.error(e);
-      }
+      } catch {}
     }
 
-    return api.sendMessage(getLang("approveSuccess", count), event.threadID);
+    return api.sendMessage(
+      getLang("approved", count),
+      threadID,
+      messageID
+    );
   },
 
-  // ================== ON START ==================
-  onStart: async ({ api, event, getLang, commandName }) => {
+  // ================= MAIN COMMAND =================
+  onStart: async function ({ api, event, getLang, commandName }) {
+    const { threadID, messageID, senderID } = event;
+
+    // 🔐 BOT CONFIG ADMINS ONLY
+    if (!global.GoatBot.config.adminBot.includes(String(senderID))) {
+      return api.sendMessage(
+        getLang("noPermission"),
+        threadID,
+        messageID
+      );
+    }
+
     try {
-      const pending = await api.getThreadList(500, null, ["PENDING"]);
-      const list = pending.filter(t => t.isGroup);
+      const spam = await api.getThreadList(100, null, ["OTHER"]);
+      const pending = await api.getThreadList(100, null, ["PENDING"]);
+      const list = [...spam, ...pending].filter(t => t.isGroup);
 
       if (!list.length)
-        return api.sendMessage(getLang("returnListClean"), event.threadID);
+        return api.sendMessage(
+          getLang("noPending"),
+          threadID,
+          messageID
+        );
 
       let msg = "";
       list.forEach((g, i) => {
-        msg += `✧ ${i + 1}. ${g.name || "Unnamed"}\n  ☞ ID: ${g.threadID}\n`;
+        msg += `${i + 1}. ${g.name || "Unnamed Group"}\nID: ${g.threadID}\n\n`;
       });
 
       api.sendMessage(
-        getLang("returnListPending", list.length, msg),
-        event.threadID,
+        `📋 PENDING GROUPS (${list.length})\n\n${msg}\nReply with number(s) to approve\nReply with c + number(s) to reject`,
+        threadID,
         (err, info) => {
           if (!err) {
             global.GoatBot.onReply.set(info.messageID, {
               commandName,
-              author: event.senderID,
+              author: senderID,
               pending: list
             });
           }
-        }
+        },
+        messageID
       );
-    } catch (e) {
-      console.error(e);
-      api.sendMessage(getLang("cantGetPendingList"), event.threadID);
+    } catch {
+      return api.sendMessage(
+        getLang("error"),
+        threadID,
+        messageID
+      );
     }
   }
 };

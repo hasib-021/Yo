@@ -6,7 +6,7 @@ const mahmud = async () => {
 };
 
 /**
-* @author MahMUD
+* @author Hasib 
 * @author: do not delete it
 */
 
@@ -14,7 +14,7 @@ module.exports = {
   config: {
     name: "4k",
     version: "1.7",
-    author: "MahMUD",
+    author: "Hasib",
     countDown: 10,
     role: 0,
     category: "image",

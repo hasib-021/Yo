@@ -1,65 +1,78 @@
 const axios = require("axios");
-const fs = require("fs");
+const fs = require("fs-extra");
 const path = require("path");
 
 module.exports = {
-    config: {
-        name: "edit",
-        aliases: [],
-        version: "1.1",
-        author: "Hasib",
-        countDown: 0,
-        role: 0,
-        shortDescription: "Edit or generate an image using Gemini-Edit",
-        category: "ai-image-edit",
-        guide: {
-            en: "{pn} <text> (reply to image optional)",
-        },
-    },
-    onStart: async function ({ message, event, args, api }) {
-        const prompt = args.join(" ");
-        if (!prompt) return message.reply("Please provide the text to edit or generate.");
-
-        const apiurl = "https://gemini-edit-omega.vercel.app/edit";
-        api.setMessageReaction("⏳", event.messageID, () => {}, true);
-
-        try {
-            
-            let params = { prompt };
-            if (event.messageReply && event.messageReply.attachments && event.messageReply.attachments[0]) {
-                params.imgurl = event.messageReply.attachments[0].url;
-            }
-
-            
-            const res = await axios.get(apiurl, { params });
-
-            if (!res.data || !res.data.images || !res.data.images[0]) {
-                api.setMessageReaction("❌", event.messageID, () => {}, true);
-                return message.reply("❌ Failed to get image.");
-            }
-
-           
-            const base64Image = res.data.images[0].replace(/^data:image\/\w+;base64,/, "");
-            const imageBuffer = Buffer.from(base64Image, "base64");
-
-         
-            const cacheDir = path.join(__dirname, "cache");
-            if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
-
-            const imagePath = path.join(cacheDir, `${Date.now()}.png`);
-            fs.writeFileSync(imagePath, imageBuffer);
-
-            api.setMessageReaction("✅", event.messageID, () => {}, true);
-
-            await message.reply({ attachment: fs.createReadStream(imagePath) }, event.threadID, () => {
-                fs.unlinkSync(imagePath);
-                message.unsend(message.messageID);
-            }, event.messageID);
-
-        } catch (error) {
-            console.error("❌ API ERROR:", error.response?.data || error.message);
-            api.setMessageReaction("❌", event.messageID, () => {}, true);
-            return message.reply("Error generating/editing image.");
-        }
+  config: {
+    name: "edit",
+    version: "1.0",
+    author: "Hasib",
+    countDown: 5,
+    role: 0,
+    shortDescription: "Edit image using FluxKontext API",
+    longDescription: "Edit an uploaded image based on your prompt using FluxKontext API.",
+    category: "ai-image-edit",
+    guide: {
+      en: "{p}edit [prompt] (reply to image)"
     }
+  },
+
+  onStart: async function ({ api, event, args, message }) {
+    const prompt = args.join(" ");
+    const repliedImage = event.messageReply?.attachments?.[0];
+
+    if (!repliedImage || repliedImage.type !== "photo") {
+      return message.reply(
+        "⚠ Please reply to a photo **and** provide a prompt to edit it.\n" +
+        "Example: /edit Make it cartoon style"
+      );
+    }
+
+    if (!prompt) {
+      return message.reply(
+        "⚠ Please provide a prompt to edit the image.\n" +
+        "Example: /edit Make it cartoon style"
+      );
+    }
+
+    const processingMsg = await message.reply("⏳ Processing your image...");
+
+    const imgPath = path.join(
+      __dirname,
+      "cache",
+      Date.now() + "_edit.jpg"
+    );
+
+    try {
+      const imgURL = repliedImage.url;
+
+      const apiURL =
+        "https://dev.oculux.xyz/api/fluxkontext" +
+        "?prompt=" + encodeURIComponent(prompt) +
+        "&ref=" + encodeURIComponent(imgURL);
+
+      const response = await axios.get(apiURL, {
+        responseType: "arraybuffer"
+      });
+
+      await fs.ensureDir(path.dirname(imgPath));
+      await fs.writeFile(imgPath, Buffer.from(response.data, "binary"));
+
+      await api.unsendMessage(processingMsg.messageID);
+
+      message.reply({
+        body: `✅ Edited image for: "${prompt}"`,
+        attachment: fs.createReadStream(imgPath)
+      });
+
+    } catch (err) {
+      console.error("EDIT Error:", err);
+      await api.unsendMessage(processingMsg.messageID);
+      message.reply("❌ Failed to edit image. Please try again later.");
+    } finally {
+      if (fs.existsSync(imgPath)) {
+        await fs.remove(imgPath);
+      }
+    }
+  }
 };

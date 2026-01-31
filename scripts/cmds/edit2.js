@@ -16,7 +16,7 @@ async function urlToBase64(url) {
 
 module.exports = {
   config: {
-    name: "edit",
+    name: "edit2",
     version: "1.0",
     author: "Hasib",
     countDown: 5,

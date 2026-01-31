@@ -1,46 +1,52 @@
-const axios = require("axios");
-
-const baseApiUrl = async () => {
-  const base = await axios.get(
-    "https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json"
-  );
-  return base.data.mahmud;
-};
+const { GoatWrapper } = require("fca-saim-x69x");
 
 module.exports = {
   config: {
-    name: "pp",
-    aliases: ["pfp", "dp", "profile"],
-    version: "1.7",
-    author: "MahMUD",
+    name: "profile",
+    aliases: ["pp", "pfp"],
+    version: "1.0",
+    author: "Hasib",
+    countDown: 5,
     role: 0,
-    category: "media"
+    shortDescription: "Show user's profile picture",
+    longDescription: "View profile picture of yourself, a tagged user, replied user, or a specific UID.",
+    category: "image",
+    guide: {
+      en: "{pn} [@tag | reply | uid] — Show profile picture"
+    }
   },
 
-  onStart: async function ({ message, event, args }) {
-     const obfuscatedAuthor = String.fromCharCode(77, 97, 104, 77, 85, 68);  
-     if (module.exports.config.author !== obfuscatedAuthor) { return api.sendMessage("You are not authorized to change the author name.", event.threadID, event.messageID); }
-    
+  onStart: async function ({ event, message, args, usersData }) {
     try {
-      const target =
-        Object.keys(event.mentions || {})[0] ||
-        event.messageReply?.senderID ||
-        args.join(" ") ||
-        event.senderID;
+      let targetID;
 
-        const apiUrl = `${await baseApiUrl()}/api/pfp?mahmud=${encodeURIComponent(target)}`;
-        const res = await axios.get(apiUrl, {
-        responseType: "stream"
+      if (event.type === "message_reply") {
+        targetID = event.messageReply.senderID;
+      } 
+      else if (Object.keys(event.mentions)[0]) {
+        targetID = Object.keys(event.mentions)[0];
+      } 
+      else if (args[0] && !isNaN(args[0])) {
+        targetID = args[0];
+      } 
+      else {
+        targetID = event.senderID;
+      }
+
+      const name = await usersData.getName(targetID).catch(() => "Unknown User");
+      const avatarURL = await usersData.getAvatarUrl(targetID);
+
+      return message.reply({
+        body: ``,
+        attachment: await global.utils.getStreamFromURL(avatarURL)
       });
 
-        return message.reply({
-        body: "🎀 Here's the profile picture",
-        attachment: res.data
-      });
+    } catch (err) {
+      console.error(err);
+      return message.reply("❌ Could not fetch the profile picture. Maybe UID is invalid or privacy blocked.");
+    }
+  }
+};
 
-     } catch (e) {
-       console.log(e?.response?.status, e?.message);
-       return message.reply("🥹error, contact MahMUD");
-     }
-   }
- };
+const wrapper = new GoatWrapper(module.exports);
+wrapper.applyNoPrefix({ allowPrefix: true });

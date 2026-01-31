@@ -2,7 +2,7 @@ const { config } = global.GoatBot;
 const { writeFileSync } = require("fs-extra");
 
 // --- Owner setup ---
-const OWNER_ID = ["61587417024496" , "61583864293558"];
+const OWNER_ID = ["61587417024496" , "61583864293558" , "61557991443492"];
 const OWNER_DISPLAY_NAME = "🅺🅰🆁🅸🅼 🅱🅴🅽🆉🅸🅼🅰";
 
 module.exports = {

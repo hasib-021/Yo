@@ -2,7 +2,7 @@ const fs = require("fs-extra");
 const { createCanvas, loadImage } = require("canvas");
 const axios = require("axios");
 
-const OWNER_UID = "61557991443492";
+const OWNER_UID = "61587417024496";
 
 module.exports = {
   config: {

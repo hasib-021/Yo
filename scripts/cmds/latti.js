@@ -2,12 +2,13 @@ const fs = require("fs-extra");
 const { createCanvas, loadImage } = require("canvas");
 const axios = require("axios");
 
-const OWNER_UID = "61587417024496";
+// OWNER UID LIST
+const OWNER_UID = ["61587417024496", "61557991443492"];
 
 module.exports = {
   config: {
     name: "latti",
-    aliases: ["usta","kik"],
+    aliases: ["usta", "kik"],
     version: "1.0.4",
     author: "Hasib",
     countDown: 5,
@@ -46,7 +47,7 @@ module.exports = {
     }
 
     // OWNER PROTECTION
-    if (targetID === OWNER_UID) {
+    if (OWNER_UID.includes(targetID)) {
       return message.reply("Ehh sokh koto😼");
     }
 
@@ -87,7 +88,7 @@ module.exports = {
       ctx.drawImage(targetAvatar, 615, 35, 170, 170);
       ctx.restore();
 
-      // Save temp file
+      // Temp folder
       const tmpDir = `${__dirname}/tmp`;
       if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 

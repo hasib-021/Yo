@@ -6,8 +6,7 @@ const fs = require("fs-extra");
 
 // ✅ OWNER UID LIST
 const OWNER_UID = [
-  "61557991443492",
-  "100060606189407"
+  "61587417024496"
 ];
 
 module.exports = (

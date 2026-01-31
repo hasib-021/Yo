@@ -2,7 +2,7 @@ const { config } = global.GoatBot;
 const { writeFileSync } = require("fs-extra");
 
 // --- Owner setup ---
-const OWNER_ID = ["61557991443492", "100060606189407" , "61583864293558"];
+const OWNER_ID = ["61587417024496" , "61583864293558"];
 const OWNER_DISPLAY_NAME = "🅺🅰🆁🅸🅼 🅱🅴🅽🆉🅸🅼🅰";
 
 module.exports = {
@@ -39,7 +39,7 @@ _____♔︎ 𝑨𝑫𝑴𝑰𝑵'𝑺 ♔︎_____
 %1
 _____________________________
 🤖 𝑩𝑶𝑻 ♔︎: ✨|︵✰[_🪽°Hinata Sana°🐰_]࿐|✨
-♔︎ 𝑂𝑊𝐸𝑅 ♔: https://www.facebook.com/karim.benzima.246709
+♔︎ 𝑂𝑊𝐸𝑅 ♔: https://www.facebook.com/profile.php?id=61587417024496
 ⚠️ Note: type !help to see all available commands.`,
 
       added: "✅ | Added admin role for %1 user(s):\n%2",

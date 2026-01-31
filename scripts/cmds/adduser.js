@@ -4,137 +4,106 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 module.exports = {
 	config: {
 		name: "adduser",
-		version: "1.5",
-		author: "NTKhang",
+		aliases: ["add"],
+		version: "1.8",
+		author: "Hasib,
 		countDown: 5,
-		role: 1,
+		role: 0,
 		description: {
-			vi: "Thêm thành viên vào box chat của bạn",
-			en: "Add user to box chat of you"
+			en: "Add user to group (reply to left message or use uid/link)"
 		},
 		category: "box chat",
 		guide: {
-			en: "   {pn} [link profile | uid]"
+			en: "{pn} [uid | fb link] OR reply to a left message"
 		}
 	},
 
 	langs: {
-		vi: {
-			alreadyInGroup: "Đã có trong nhóm",
-			successAdd: "- Đã thêm thành công %1 thành viên vào nhóm",
-			failedAdd: "- Không thể thêm %1 thành viên vào nhóm",
-			approve: "- Đã thêm %1 thành viên vào danh sách phê duyệt",
-			invalidLink: "Vui lòng nhập link facebook hợp lệ",
-			cannotGetUid: "Không thể lấy được uid của người dùng này",
-			linkNotExist: "Profile url này không tồn tại",
-			cannotAddUser: "Bot bị chặn tính năng hoặc người dùng này chặn người lạ thêm vào nhóm"
-		},
 		en: {
-			alreadyInGroup: "Already in group",
-			successAdd: "- Successfully added %1 members to the group",
-			failedAdd: "- Failed to add %1 members to the group",
-			approve: "- Added %1 members to the approval list",
-			invalidLink: "Please enter a valid facebook link",
-			cannotGetUid: "Cannot get uid of this user",
-			linkNotExist: "This profile url does not exist",
-			cannotAddUser: "Bot is blocked or this user blocked strangers from adding to the group"
+			successAdd: "✅ User added successfully",
+			waitApprove: "⏳ User added to approval list",
+			alreadyInGroup: "⚠️ User is already in the group",
+			cannotAddUser: "❌ Cannot add this user (blocked or privacy settings)",
+			noUserFound: "❌ Cannot detect user from replied message",
+			invalidInput: "❌ Invalid UID or Facebook profile link"
 		}
 	},
 
 	onStart: async function ({ message, api, event, args, threadsData, getLang }) {
-		const { members, adminIDs, approvalMode } = await threadsData.get(event.threadID);
+		const threadData = await threadsData.get(event.threadID);
+		const { members = [], adminIDs = [], approvalMode } = threadData;
 		const botID = api.getCurrentUserID();
 
-		const success = [
-			{
-				type: "success",
-				uids: []
-			},
-			{
-				type: "waitApproval",
-				uids: []
-			}
-		];
-		const failed = [];
+		let uid = null;
 
-		function checkErrorAndPush(messageError, item) {
-			item = item.replace(/(?:https?:\/\/)?(?:www\.)?(?:facebook|fb|m\.facebook)\.(?:com|me)/i, '');
-			const findType = failed.find(error => error.type == messageError);
-			if (findType)
-				findType.uids.push(item);
-			else
-				failed.push({
-					type: messageError,
-					uids: [item]
-				});
+		/* ─────────────────────
+		   🔁 REPLY MODE (LEFT USER)
+		───────────────────── */
+		if (event.type === "message_reply") {
+			const replyMsg = event.messageReply;
+
+			if (replyMsg?.logMessageData?.leftParticipantFbId) {
+				uid = replyMsg.logMessageData.leftParticipantFbId;
+			}
+
+			if (!uid)
+				return message.reply(getLang("noUserFound"));
 		}
 
-		const regExMatchFB = /(?:https?:\/\/)?(?:www\.)?(?:facebook|fb|m\.facebook)\.(?:com|me)\/(?:(?:\w)*#!\/)?(?:pages\/)?(?:[\w\-]*\/)*([\w\-\.]+)(?:\/)?/i;
-		for (const item of args) {
-			let uid;
-			let continueLoop = false;
+		/* ─────────────────────
+		   🧾 NORMAL MODE (UID/LINK)
+		───────────────────── */
+		else if (args.length) {
+			const input = args[0];
 
-			if (isNaN(item) && regExMatchFB.test(item)) {
-				for (let i = 0; i < 10; i++) {
+			// UID
+			if (!isNaN(input)) {
+				uid = input;
+			}
+			// Facebook link
+			else {
+				let retry = 0;
+				while (retry < 5) {
 					try {
-						uid = await findUid(item);
+						uid = await findUid(input);
 						break;
 					}
 					catch (err) {
-						if (err.name == "SlowDown" || err.name == "CannotGetData") {
+						if (["SlowDown", "CannotGetData"].includes(err.name)) {
+							retry++;
 							await sleep(1000);
-							continue;
 						}
-						else if (i == 9 || (err.name != "SlowDown" && err.name != "CannotGetData")) {
-							checkErrorAndPush(
-								err.name == "InvalidLink" ? getLang('invalidLink') :
-									err.name == "CannotGetData" ? getLang('cannotGetUid') :
-										err.name == "LinkNotExist" ? getLang('linkNotExist') :
-											err.message,
-								item
-							);
-							continueLoop = true;
-							break;
+						else {
+							return message.reply(getLang("invalidInput"));
 						}
 					}
 				}
 			}
-			else if (!isNaN(item))
-				uid = item;
-			else
-				continue;
-
-			if (continueLoop == true)
-				continue;
-
-			if (members.some(m => m.userID == uid && m.inGroup)) {
-				checkErrorAndPush(getLang("alreadyInGroup"), item);
-			}
-			else {
-				try {
-					await api.addUserToGroup(uid, event.threadID);
-					if (approvalMode === true && !adminIDs.includes(botID))
-						success[1].uids.push(uid);
-					else
-						success[0].uids.push(uid);
-				}
-				catch (err) {
-					checkErrorAndPush(getLang("cannotAddUser"), item);
-				}
-			}
+		}
+		else {
+			return message.reply("⚠️ Reply to a left message or provide UID/link");
 		}
 
-		const lengthUserSuccess = success[0].uids.length;
-		const lengthUserWaitApproval = success[1].uids.length;
-		const lengthUserError = failed.length;
+		/* ─────────────────────
+		   👀 CHECK IF IN GROUP
+		───────────────────── */
+		if (members.some(m => (m.userID || m.id) == uid && m.inGroup !== false)) {
+			return message.reply(getLang("alreadyInGroup"));
+		}
 
-		let msg = "";
-		if (lengthUserSuccess)
-			msg += `${getLang("successAdd", lengthUserSuccess)}\n`;
-		if (lengthUserWaitApproval)
-			msg += `${getLang("approve", lengthUserWaitApproval)}\n`;
-		if (lengthUserError)
-			msg += `${getLang("failedAdd", failed.reduce((a, b) => a + b.uids.length, 0))} ${failed.reduce((a, b) => a += `\n    + ${b.uids.join('\n       ')}: ${b.type}`, "")}`;
-		await message.reply(msg);
+		/* ─────────────────────
+		   ➕ ADD USER
+		───────────────────── */
+		try {
+			await api.addUserToGroup(uid, event.threadID);
+
+			if (approvalMode && !adminIDs.includes(botID))
+				return message.reply(getLang("waitApprove"));
+
+			return message.reply(getLang("successAdd"));
+		}
+		catch (err) {
+			return message.reply(getLang("cannotAddUser"));
+		}
 	}
 };

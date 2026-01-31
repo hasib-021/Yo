@@ -2,63 +2,85 @@ const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
 
-const mahmud = async () => {
-  const base = await axios.get(
-    "https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json"
-  );
-  return base.data.mahmud;
-};
+const apiUrl = "https://raw.githubusercontent.com/Saim-x69x/sakura/main/ApiUrl.json";
+
+async function getApiUrl() {
+  const res = await axios.get(apiUrl);
+  return res.data.apiv3;
+}
+
+async function urlToBase64(url) {
+  const res = await axios.get(url, { responseType: "arraybuffer" });
+  return Buffer.from(res.data).toString("base64");
+}
 
 module.exports = {
   config: {
-    name: "edit2",
-    version: "1.7",
+    name: "edit",
+    version: "1.0",
     author: "Hasib",
-    countDown: 10,
+    countDown: 5,
     role: 0,
-    category: "image",
-    guide: { en: "{p}edit [prompt] reply to image" }
+    shortDescription: "Edit an image using text prompt",
+    longDescription: "Only edits an existing image. Must reply to an image.",
+    category: "ai",
+    guide: "{p}edit <prompt> (reply to an image)"
   },
 
   onStart: async function ({ api, event, args, message }) {
-    const obfuscatedAuthor = String.fromCharCode(77, 97, 104, 77, 85, 68); 
-    if (module.exports.config.author !== obfuscatedAuthor) {
-      return message.reply("❌ | You are not authorized to change the author name.");
-    }
-
-    const prompt = args.join(" ");
     const repliedImage = event.messageReply?.attachments?.[0];
+    const prompt = args.join(" ").trim();
 
-    if (!prompt || !repliedImage || repliedImage.type !== "photo") {
-      return message.reply(" Please reply to a photo with your prompt to edit it.");
+    if (!repliedImage || repliedImage.type !== "photo") {
+      return message.reply(
+        "❌ Please reply to an image to edit it.\n\nExample:\n/edit make it anime style"
+      );
     }
 
-    const cacheDir = path.join(__dirname, "cache");
-    await fs.ensureDir(cacheDir);
+    if (!prompt) {
+      return message.reply("❌ Please provide an edit prompt.");
+    }
 
-    const imgPath = path.join(cacheDir, `${Date.now()}_edit.jpg`);
-    const waitMsg = await message.reply("🪄 | Editing your image, please wait...");
+    const processingMsg = await message.reply("🖌️ Editing image...");
+
+    const imgPath = path.join(
+      __dirname,
+      "cache",
+      `${Date.now()}_edit.jpg`
+    );
 
     try {
-      const baseURL = await mahmud();
-      const res = await axios.post(
-        `${baseURL}/api/edit`,
-        { prompt, imageUrl: repliedImage.url },
-        { responseType: "arraybuffer" }
-      );
+      const API_URL = await getApiUrl();
 
-      await fs.writeFile(imgPath, Buffer.from(res.data, "binary"));
+      const payload = {
+        prompt: `Edit the given image based on this description:\n${prompt}`,
+        images: [await urlToBase64(repliedImage.url)],
+        format: "jpg"
+      };
+
+      const res = await axios.post(API_URL, payload, {
+        responseType: "arraybuffer",
+        timeout: 180000
+      });
+
+      await fs.ensureDir(path.dirname(imgPath));
+      await fs.writeFile(imgPath, Buffer.from(res.data));
+
+      await api.unsendMessage(processingMsg.messageID);
 
       await message.reply({
-        body: `✅ | Edited image for: "${prompt}"`,
+        body: `✅ Image edited successfully\nPrompt: ${prompt}`,
         attachment: fs.createReadStream(imgPath)
       });
-    } catch (err) {
-      console.error(err);
-      message.reply("🥹 error baby, contact Hasib.");
+
+    } catch (error) {
+      console.error("EDIT Error:", error?.response?.data || error.message);
+      await api.unsendMessage(processingMsg.messageID);
+      message.reply("❌ Failed to edit image. Try again later.");
     } finally {
-      setTimeout(() => fs.remove(imgPath).catch(() => {}), 10000);
-      if (waitMsg?.messageID) api.unsendMessage(waitMsg.messageID);
+      if (fs.existsSync(imgPath)) {
+        await fs.remove(imgPath);
+      }
     }
   }
 };

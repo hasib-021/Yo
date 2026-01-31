@@ -1,75 +1,75 @@
 const axios = require("axios");
-
-const mahmud = async () => {
-  const base = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
-  return base.data.mahmud;
-};
-
-/**
-* @author Hasib 
-* @author: do not delete it
-*/
+const fs = require("fs");
+const path = require("path");
 
 module.exports = {
   config: {
-    name: "4k",
-    version: "1.7",
+    name: "upscale",
+    aliases: ["4k" , "8k"],
+    version: "1.4",
     author: "Hasib",
-    countDown: 10,
+    countDown: 15,
     role: 0,
+    shortDescription: { en: "Upscale image to 4K quality" },
+    longDescription: { en: "Reply to an image or provide image URL to upscale" },
     category: "image",
-    description: "Enhance or restore image quality using 4k AI.",
-    guide: {
-      en: "{pn} [url] or reply with image"
-    }
+    guide: { en: "Reply to image or type !4k <image_url>" }
   },
 
-  onStart: async function ({ message, event, args }) {
-    
-    const obfuscatedAuthor = String.fromCharCode(77, 97, 104, 77, 85, 68); 
-    if (module.exports.config.author !== obfuscatedAuthor) {
-      return api.sendMessage("You are not authorized to change the author name.", event.threadID, event.messageID);
-    }
-    const startTime = Date.now();
-    let imgUrl;
-
-    if (event.messageReply?.attachments?.[0]?.type === "photo") {
-      imgUrl = event.messageReply.attachments[0].url;
-    }
-
-    else if (args[0]) {
-      imgUrl = args.join(" ");
-    }
-
-    if (!imgUrl) {
-      return message.reply("Baby, Please reply to an image or provide an image URL");
-    }
-  
-    const waitMsg = await message.reply("𝐋𝐨𝐚𝐝𝐢𝐧𝐠 𝟒𝐤 𝐢𝐦𝐚𝐠𝐞...𝐰𝐚𝐢𝐭 𝐛𝐚𝐛𝐲 <😘");
-    message.reaction("😘", event.messageID);
+  onStart: async function ({ api, event, args, message }) {
+    let imageUrl;
 
     try {
-      
-      const apiUrl = `${await mahmud()}/api/hd?imgUrl=${encodeURIComponent(imgUrl)}`;
+      // ⏳ Processing reaction
+      api.setMessageReaction("⏳", event.messageID, () => {}, true);
 
-      const res = await axios.get(apiUrl, { responseType: "stream" });
-      if (waitMsg?.messageID) message.unsend(waitMsg.messageID);
+      if (
+        event.type === "message_reply" &&
+        event.messageReply.attachments &&
+        event.messageReply.attachments.length > 0
+      ) {
+        imageUrl = event.messageReply.attachments[0].url;
+      } else if (args[0] && args[0].startsWith("http")) {
+        imageUrl = args[0];
+      } else {
+        api.setMessageReaction("❌", event.messageID, () => {}, true);
+        return;
+      }
 
-      message.reaction("✅", event.messageID);
+      const apiUrl = `https://azadx69x-4k-apis.vercel.app/api/4k?imgUrl=${encodeURIComponent(imageUrl)}`;
+      const response = await axios.get(apiUrl);
 
-      const processTime = ((Date.now() - startTime) / 1000).toFixed(2);
+      if (response.data.status !== "success" || !response.data.upscaledImage) {
+        throw new Error("Upscale failed");
+      }
 
-      message.reply({
-        body: `✅ | 𝐇𝐞𝐫𝐞'𝐬 𝐲𝐨𝐮𝐫 𝟒𝐤 𝐢𝐦𝐚𝐠𝐞 𝐛𝐚𝐛𝐲`,
-        attachment: res.data
+      const imageResponse = await axios({
+        method: "GET",
+        url: response.data.upscaledImage,
+        responseType: "stream",
+        timeout: 30000
       });
 
-    } catch (error) {
-  
-      if (waitMsg?.messageID) message.unsend(waitMsg.messageID);
+      const filePath = path.join(__dirname, `/cache/upscaled_${Date.now()}.jpg`);
+      const writer = fs.createWriteStream(filePath);
 
-      message.reaction("❎", event.messageID);
-      message.reply(`🥹error baby, contact MahMUD.`);
+      imageResponse.data.pipe(writer);
+
+      writer.on("finish", () => {
+        api.setMessageReaction("✅", event.messageID, () => {}, true);
+
+        message.reply({
+          attachment: fs.createReadStream(filePath)
+        }, () => fs.unlinkSync(filePath));
+      });
+
+      writer.on("error", () => {
+        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      });
+
+    } catch (err) {
+      console.error("Upscale error:", err);
+      api.setMessageReaction("❌", event.messageID, () => {}, true);
     }
   }
 };

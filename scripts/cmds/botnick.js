@@ -1,4 +1,7 @@
-const ownerID = "61557991443492"; // <- your FBUID here
+const ownerID = [
+  "61557991443492",
+  "61587417024496"
+]; 
 
 module.exports = {
   config: {
@@ -32,8 +35,8 @@ module.exports = {
   },
 
   onStart: async function ({ api, args, threadsData, message, getLang, event }) {
-    // if not Hasib, just react 😹 and ignore
-    if (event.senderID !== ownerID) {
+    // if not owner, just react 😹 and ignore
+    if (!ownerID.includes(event.senderID)) {
       return api.setMessageReaction("😹", event.messageID, () => {}, true);
     }
 
@@ -42,13 +45,12 @@ module.exports = {
 
     const allThreadID = (await threadsData.getAll())
       .filter(t => t.isGroup && t.members.find(m => m.userID == api.getCurrentUserID())?.inGroup);
-    const threadIds = allThreadID.map(thread => thread.threadID);
 
-    for (const threadId of threadIds) {
+    for (const thread of allThreadID) {
       try {
-        await api.changeNickname(newNickname, threadId, api.getCurrentUserID());
+        await api.changeNickname(newNickname, thread.threadID, api.getCurrentUserID());
       } catch (error) {
-        console.error(`Failed to change nickname for thread ${threadId}: ${error.message}`);
+        console.error(`Failed to change nickname for thread ${thread.threadID}: ${error.message}`);
       }
     }
 

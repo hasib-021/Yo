@@ -1,7 +1,9 @@
 # 🐐 Goat bot by Hasib 
 
-<p align="center">
-  <img src="https://readme-typing-svg.herokuapp.com?font=Montserrat&weight=700&size=30&duration=3500&pause=700&color=00FFD1&center=true&vCenter=true&width=780&lines=🤖+𝗚𝗼𝗮𝘁+𝗕𝗼𝘁+𝗩2;⚡+Made by karim" />
+[![Typing SVG](https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=25&pause=1000&color=00FFFF&center=true&vCenter=true&width=435&lines=𝐆𝐎𝐀𝐓+𝐁𝐎𝐓+𝐕2)](https://git.io/typing-svg)
+[![Typing SVG](https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=25&pause=1000&color=FFD700&center=true&vCenter=true&width=435&lines=MESSENGER+Chat+BOT)](https://git.io/typing-svg)
+[![Typing SVG](https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=25&pause=1000&color=FF69B4&center=true&vCenter=true&width=435&lines=𝐇𝐚𝐬𝐢𝐛)](https://git.io/typing-svg)
+
 
 The original author of this Bot is Ntkhang. This fork is maintained by: Hasib  
 

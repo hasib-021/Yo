@@ -1,61 +1,74 @@
-const axios = require('axios');
+const axios = require("axios");
 const jimp = require("jimp");
 const fs = require("fs");
-
-// Placeholder for secure Facebook profile picture retrieval function
-async function getFacebookProfilePicture(userId) {
-  // Implement logic to retrieve profile picture using Facebook Graph API
-  // and user consent
-}
 
 module.exports = {
   config: {
     name: "slap3",
     aliases: ["battslap3"],
-    version: "1.0",
-    author:"Hasib",
+    version: "1.1",
+    author: "Hasib",
     countDown: 5,
     role: 0,
     shortDescription: "buttslap someone",
     longDescription: "",
     category: "Entertainment",
-    guide: "{pn}"
+    guide: "{pn} @tag OR reply"
   },
 
-  onStart: async function ({ message, event, args }) {
-    const uid1 = event.senderID;
-    const uid2 = Object.keys(event.mentions)[0];
-
-    // Check if the mentioned user is restricted
-    if (uid2 === "61578365162382" || uid2 === "61578365162382") {
-      return message.reply("who the hell are you moron ‍");
-    }
-
-    if (!uid2) {
-      return message.reply("You didn't tag anyone.");
-    }
-
+  onStart: async function ({ message, event }) {
     try {
-      const one = uid1, two = uid2;
+      const uid1 = event.senderID;
 
-      // Get profile pictures securely using getFacebookProfilePicture function
-      const avone = await jimp.read(`https://graph.facebook.com/${one}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`);
+      // 🟢 GET TARGET USER (reply first, then mention)
+      let uid2;
+      if (event.messageReply) {
+        uid2 = event.messageReply.senderID;
+      } else if (Object.keys(event.mentions).length > 0) {
+        uid2 = Object.keys(event.mentions)[0];
+      }
+
+      if (!uid2) {
+        return message.reply("❌ Reply to someone or tag someone to slap!");
+      }
+
+      // ❌ Restricted user check
+      if (uid2 === "61578365162382") {
+        return message.reply("who the hell are you moron ‍😒");
+      }
+
+      // 🖼️ Load avatars
+      const avone = await jimp.read(
+        `https://graph.facebook.com/${uid1}/picture?width=512&height=512`
+      );
       avone.circle();
-      const avtwo = await jimp.read(`https://graph.facebook.com/${two}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`);
+
+      const avtwo = await jimp.read(
+        `https://graph.facebook.com/${uid2}/picture?width=512&height=512`
+      );
       avtwo.circle();
 
-      const pth = "butt.png";
-      const img = await jimp.read("https://i.postimg.cc/W3NwfQTB/butt.png");
+      // 🖼️ Base image
+      const img = await jimp.read(
+        "https://i.postimg.cc/W3NwfQTB/butt.png"
+      );
 
-      img.resize(720, 405)
+      img
+        .resize(720, 405)
         .composite(avone.resize(90, 90), 368, 34)
         .composite(avtwo.resize(90, 90), 190, 225);
 
-      await img.writeAsync(pth);
-      message.reply({ body: "𝕞𝕠𝕧𝕖 𝕪𝕠𝕦𝕣 𝕓𝕦𝕥𝕥", attachment: fs.createReadStream(pth) });
-    } catch (error) {
-      console.error("Error:", error);
-      message.reply("An error occurred. Please try again later.");
+      const path = "butt.png";
+      await img.writeAsync(path);
+
+      return message.reply({
+        body: "𝕞𝕠𝕧𝕖 𝕪𝕠𝕦𝕣 𝕓𝕦𝕥𝕥 🍑",
+        attachment: fs.createReadStream(path)
+      });
+
+    } catch (err) {
+      console.error(err);
+      message.reply("⚠️ Something went wrong. Try again later.");
     }
   }
 };

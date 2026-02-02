@@ -44,9 +44,7 @@ module.exports = {
 https://www.facebook.com/six.pain.448074
 `;
 
-    const mediaUrls = [
-      "https://files.catbox.moe/flitt7.gif",
-      "https://files.catbox.moe/b5ue9d.jpg"
+    const mediaUrls = [    "https://files.catbox.moe/b5ue9d.jpg"
     ];
 
     const cacheDir = path.join(__dirname, "cache");

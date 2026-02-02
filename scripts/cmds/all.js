@@ -1,8 +1,9 @@
 module.exports = {
 	config: {
 		name: "all",
+		aliases:["everyone"]
 		version: "1.2",
-		author: "NTKhang",
+		author: "Hasib",
 		countDown: 5,
 		role: 1,
 		description: {

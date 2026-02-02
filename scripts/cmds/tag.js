@@ -1,49 +1,95 @@
 module.exports = {
   config: {
     name: "tag",
-    version: "1.1",
-    author: "Arijit",
-    countDown: 3,
+    category: "GROUP",
     role: 0,
-    shortDescription: "Tag mentioned or replied user",
-    longDescription: "Tag a user by mention or by replying to their message with an optional message.",
-    category: "utility",
+    author: "Hasib",
+    countDown: 3,
+    description: {
+      en: "Tag by reply, name or tag all members"
+    },
     guide: {
-      en: "{pn} [@mention or reply] [optional message]"
+      en: "{pm}tag [name] [msg]\n{pm}tag all [msg]\nReply + {pm}tag [msg]"
     }
   },
 
-  onStart: async function ({ api, event, args }) {
-    let targetID;
-    let tagName;
+  onStart: async ({ api, event, usersData, threadsData, args }) => {
+    const { threadID, messageID, messageReply } = event;
 
-    // Replied user
-    if (event.type === "message_reply") {
-      targetID = event.messageReply.senderID;
-      tagName = event.messageReply.senderID;
+    try {
+      const threadData = await threadsData.get(threadID);
+      if (!threadData || !threadData.members) {
+        return api.sendMessage("❌ Cannot read group members", threadID, messageID);
+      }
+
+      const members = threadData.members
+        .filter(m => m.inGroup)
+        .map(m => ({
+          name: m.name,
+          id: m.userID
+        }));
+
+      if (members.length === 0) {
+        return api.sendMessage("❌ No members found", threadID, messageID);
+      }
+
+      let tagUsers = [];
+      let text = "";
+
+      // ✅ Reply tag
+      if (messageReply) {
+        const uid = messageReply.senderID;
+        const name = await usersData.getName(uid);
+        tagUsers.push({ name, id: uid });
+        text = args.join(" ");
+      }
+
+      // ✅ Tag all
+      else if (args[0] && ["all", "cdi"].includes(args[0].toLowerCase())) {
+        tagUsers = members;
+        text = args.slice(1).join(" ");
+      }
+
+      // ✅ Tag by name
+      else {
+        if (!args[0]) {
+          return api.sendMessage(
+            "⚠️ Use reply / name / tag all",
+            threadID,
+            messageID
+          );
+        }
+
+        const searchName = args[0].toLowerCase();
+        text = args.slice(1).join(" ");
+
+        tagUsers = members.filter(m =>
+          m.name.toLowerCase().includes(searchName)
+        );
+
+        if (tagUsers.length === 0) {
+          return api.sendMessage("❌ User not found", threadID, messageID);
+        }
+      }
+
+      const mentions = tagUsers.map(u => ({
+        tag: u.name,
+        id: u.id
+      }));
+
+      // 🔥 BODY (your requested line)
+      const body = text
+        ? `oi aktu shuno😒\n${text}`
+        : "oi aktu shuno😒";
+
+      api.sendMessage(
+        { body, mentions },
+        threadID,
+        messageReply ? messageReply.messageID : messageID
+      );
+
+    } catch (err) {
+      api.sendMessage("❌ Error: " + err.message, threadID, messageID);
     }
-
-    // Mentioned user
-    else if (Object.keys(event.mentions).length > 0) {
-      targetID = Object.keys(event.mentions)[0];
-      tagName = event.mentions[targetID];
-    }
-
-    // No target
-    else {
-      return api.sendMessage("❌ | Please mention a user or reply to someone's message.", event.threadID);
-    }
-
-    // Message body
-    const customMsg = args.join(" ") || "👋 Hey there!";
-    const msg = {
-      body: customMsg,
-      mentions: [{
-        tag: typeof tagName === "string" ? tagName : "User",
-        id: targetID
-      }]
-    };
-
-    return api.sendMessage(msg, event.threadID);
   }
 };

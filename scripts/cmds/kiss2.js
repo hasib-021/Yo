@@ -13,7 +13,7 @@ const avatarConfig = {
 
 module.exports = {
   config: {
-    name: "kiss4",
+    name: "kiss2",
     version: "2.0",
     author: "Hasib",
     countDown: 5,

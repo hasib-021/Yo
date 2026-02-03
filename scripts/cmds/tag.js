@@ -79,8 +79,8 @@ module.exports = {
 
       // 🔥 BODY (your requested line)
       const body = text
-        ? `oi aktu shuno😒\n${text}`
-        : "oi aktu shuno😒";
+        ? `oi shuno😒\n${text}`
+        : "oi shuno😒";
 
       api.sendMessage(
         { body, mentions },

@@ -21,7 +21,7 @@ module.exports = {
 
       api.sendMessage(
         {
-          body: "🥰✨️",
+          body: "",
           attachment: await Promise.all([
             global.utils.getStreamFromURL(boy),
             global.utils.getStreamFromURL(boy2)

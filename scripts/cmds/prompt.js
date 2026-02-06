@@ -1,64 +1,48 @@
 const axios = require("axios");
 
-const configUrl = "https://raw.githubusercontent.com/aryannix/stuffs/master/raw/apis.json";
+const baseApi = "https://azadx69x-all-apis-top.vercel.app/api/prompt";
 
 module.exports = {
   config: {
     name: "prompt",
     aliases: ["p"],
-    version: "0.0.1",
+    version: "0.0.5",
     role: 0,
     author: "Hasib",
     category: "ai",
-    cooldowns: 5,
-    guide: { en: "Reply to an image to generate Midjourney prompt" }
+    cooldowns: 3,
+    guide: { en: "Reply to an image to generate an AI prompt" }
   },
 
   onStart: async ({ api, event }) => {
     const { threadID, messageID, messageReply } = event;
-
-    let baseApi;
-    try {
-      const configRes = await axios.get(configUrl);
-      baseApi = configRes.data && configRes.data.api;
-      if (!baseApi) throw new Error("Configuration Error: Missing API in GitHub JSON.");
-    } catch (error) {
-      return api.sendMessage("❌ Failed to fetch API configuration from GitHub.", threadID, messageID);
-    }
-
+    
     if (
       !messageReply ||
       !messageReply.attachments ||
       messageReply.attachments.length === 0 ||
       !messageReply.attachments[0].url
     ) {
-      return api.sendMessage("Please reply to an image.", threadID, messageID);
+      return api.sendMessage("⚠️ Please reply to an image to generate a prompt.", threadID, messageID);
     }
 
     try {
-      api.setMessageReaction("⏰", messageID, () => {}, true);
+      api.setMessageReaction("⏳", messageID, () => {}, true);
 
       const imageUrl = messageReply.attachments[0].url;
-      const apiUrl = `${baseApi}/promptv2`;
-
-      const apiResponse = await axios.get(apiUrl, {
-        params: { imageUrl }
-      });
-
-      const result = apiResponse.data;
-
-      if (!result.success) {
-        throw new Error(result.message || "Prompt API failed.");
+      const apiUrl = `${baseApi}?url=${encodeURIComponent(imageUrl)}`;
+      
+      const response = await axios.get(apiUrl);
+      const json = response.data;
+      
+      if (!json || !json.data || !json.data.prompt) {
+        throw new Error("❌ No prompt found.");
       }
 
-      const promptText = result.prompt || "No prompt returned.";
-
-      await api.sendMessage(
-        { body: `${promptText}` },
-        threadID,
-        messageID
-      );
-
+      const promptText = json.data.prompt;
+      
+      await api.sendMessage({ body: `🐦 Generated Prompt:\n\n${promptText}` }, threadID, messageID);
+      
       api.setMessageReaction("✅", messageID, () => {}, true);
     } catch (e) {
       api.setMessageReaction("❌", messageID, () => {}, true);

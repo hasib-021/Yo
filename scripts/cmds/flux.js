@@ -1,81 +1,81 @@
 const axios = require("axios");
-const fs = require("fs");
+const fs = require("fs-extra");
 const path = require("path");
 
-const baseApiUrl = async () => {
-  const base = await axios.get(
-    "https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json"
-  );
-  return base.data.mahmud;
-};
+const baseApi = "https://azadx69x-all-apis-top.vercel.app/api/flux";
 
-/**
-* @author MahMUD
-* @author: do not delete it
-*/
+module.exports = {
+  config: {
+    name: "flux",
+    aliases: ["fx"],
+    version: "0.0.9",
+    role: 0,
+    author: "Azadx69x",
+    category: "ai",
+    cooldowns: 5,
+    guide: { en: "Generate Flux AI image using a prompt" }
+  },
 
-module.exports.config = {
-  name: "flux",
-  version: "1.7",
-  role: 0,
-  author: "MahMUD",
-  description: "Flux Image Generator with random seed",
-  category: "Image gen",
-  guide: "{pn} [prompt]",
-  countDown: 15,
-};
-
-module.exports.onStart = async ({ event, args, api }) => {
-  const obfuscatedAuthor = String.fromCharCode(77, 97, 104, 77, 85, 68); 
-    if (module.exports.config.author !== obfuscatedAuthor) {
-    return api.sendMessage("You are not authorized to change the author name.\n", event.threadID, event.messageID);
-    }
-  
-   try {
-    if (!args.length) {
-      return api.sendMessage(
-        "Please provide a prompt!",
-        event.threadID,
-        event.messageID
-      );
-    }
-
+  onStart: async ({ api, event, args }) => {
+    const { threadID, messageID } = event;
     const prompt = args.join(" ");
-    const seed = Math.floor(Math.random() * 1000000); 
 
-    const waitMessage = await api.sendMessage(
-      "✅ image Generating, please wait...!!",
-      event.threadID
-    );
+    if (!prompt) 
+      return api.sendMessage("⚠️ Please provide a prompt.", threadID, messageID);
 
     try {
-      const url = `${await baseApiUrl()}/api/gen?prompt=${encodeURIComponent(
-        prompt
-      )}&model=flux&seed=${seed}`;
+      api.setMessageReaction("🎨", messageID, () => {}, true);
 
-      const response = await axios.get(url, { responseType: "arraybuffer" });
-      const filePath = path.join(__dirname, `flux_${Date.now()}.png`);
-      fs.writeFileSync(filePath, response.data);
-      api.unsendMessage(waitMessage.messageID);
-      api.sendMessage(
-        {
-          body: `𝐇𝐞𝐫𝐞'𝐬 𝐲𝐨𝐮𝐫 𝐟𝐥𝐮𝐱 𝐢𝐦𝐚𝐠𝐞 𝐛𝐚𝐛𝐲 <😘`,
-          attachment: fs.createReadStream(filePath),
+      fs.ensureDirSync(path.join(__dirname, "cache"));
+      
+      const apiUrl = `${baseApi}?prompt=${encodeURIComponent(prompt)}`;
+      const response = await axios.get(apiUrl);
+      const result = response.data;
+
+      if (!result.success || !result.data?.images?.length)
+        throw new Error("API did not return any images.");
+      
+      const attachments = [];
+      for (let i = 0; i < result.data.images.length; i++) {
+        const imageUrl = result.data.images[i];
+        const imageResponse = await axios.get(imageUrl, { responseType: "arraybuffer" });
+
+        const imgPath = path.join(__dirname, "cache", `flux_${Date.now()}_${i}.png`);
+        fs.writeFileSync(imgPath, imageResponse.data);
+        attachments.push(fs.createReadStream(imgPath));
+      }
+      
+      const messageBody = `
+╭─────────────────────╮
+│ 🎨 𝙁𝙡𝙪𝙭 𝙎𝙩𝙮𝙡𝙚 𝙄𝙢𝙖𝙜𝙚 𝙂𝙚𝙣𝙚𝙧𝙖𝙩𝙤𝙧
+╰─────────────────────╯
+
+📝 𝐏𝐫𝐨𝐦𝐩𝐭 :
+${prompt}
+`;
+      
+      await api.sendMessage(
+        { body: messageBody, attachment: attachments },
+        threadID,
+        (err, info) => {
+          attachments.forEach(att => {
+            try { fs.unlinkSync(att.path); } catch {}
+          });
+
+          if (err) {
+            api.setMessageReaction("❌", messageID, () => {}, true);
+            return;
+          }
+          
+          api.setMessageReaction("✅", messageID, () => {}, true);
         },
-        event.threadID,
-        event.messageID
+        messageID
       );
 
-      setTimeout(() => fs.unlinkSync(filePath), 5000);
     } catch (err) {
-      console.error(err);
-      api.sendMessage(
-        "🥹error contact, MahMUD. " + err.message,
-        event.threadID,
-        event.messageID
-      );
+      api.setMessageReaction("❌", messageID, () => {}, true);
+      const msg = err.response?.data?.error || err.message || "⚠️ Error while generating image.";
+      api.sendMessage(msg, threadID, messageID);
     }
-  } catch (e) {
-    console.error(e);
   }
 };

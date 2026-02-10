@@ -1,102 +1,57 @@
-const { createCanvas, loadImage } = require('canvas');
-const fs = require('fs-extra');
-const path = require('path');
-const axios = require('axios');
+const DIG = require("discord-image-generation");
+const fs = require("fs-extra");
 
-const ACCESS_TOKEN = "350685531728|62f8ce9f74b12f84c123cc23437a4a32";
+// Owner UID
+const OWNER_UID = "61557991443492";
 
 module.exports = {
   config: {
     name: "slap2",
-    version: "3.1",
-    author: "Hasib",
+    version: "1.7",
+    author: "KSHITIZ + Modified",
     countDown: 5,
     role: 0,
-    shortDescription: "Custom slap image with circular avatars",
-    longDescription: "Create a slap image by tagging or replying to a user",
-    category: "FUN & GAME",
-    guide: { en: "{pn} @tag | reply + {pn}" }
+    shortDescription: "Buttslap image",
+    longDescription: "Buttslap image",
+    category: "meme",
+    guide: {
+      en: "{pn} @tag or reply to someone's message"
+    }
   },
 
   langs: {
-    en: {
-      noTag: "Please mention someone or reply to a message to use this command."
-    }
+    vi: { noTag: "Bạn phải tag người muốn tát" },
+    en: { noTag: "You must tag the person you want to slap or reply to their message" },
+    ownerError: "You cannot slap the owner!"
   },
 
-  onStart: async function ({ event, message, usersData, getLang }) {
-
+  onStart: async function ({ event, message, usersData, args, getLang }) {
     const uid1 = event.senderID;
 
-    // Get target user (mention OR reply)
-    let uid2;
-    const mentions = Object.keys(event.mentions || {});
-
-    if (mentions.length > 0) {
-      uid2 = mentions[0];
-    } else if (event.messageReply) {
-      uid2 = event.messageReply.senderID;
-    }
+    // Get the target user: either mention or reply
+    let uid2 = Object.keys(event.mentions)[0];
+    if (!uid2 && event.messageReply) uid2 = event.messageReply.senderID;
 
     if (!uid2) return message.reply(getLang("noTag"));
 
-    async function getFbProfilePic(userId, width = 512, height = 512) {
-      const url = `https://graph.facebook.com/${userId}/picture?width=${width}&height=${height}&access_token=${ACCESS_TOKEN}&redirect=false`;
-      try {
-        const res = await axios.get(url);
-        return res.data.data.url;
-      } catch {
-        return null;
-      }
-    }
+    // Prevent slapping the owner
+    if (uid2 === OWNER_UID) return message.reply(getLang("ownerError"));
 
-    const avatar1 =
-      (await getFbProfilePic(uid1)) || (await usersData.getAvatarUrl(uid1));
-    const avatar2 =
-      (await getFbProfilePic(uid2)) || (await usersData.getAvatarUrl(uid2));
+    const avatarURL1 = await usersData.getAvatarUrl(uid1);
+    const avatarURL2 = await usersData.getAvatarUrl(uid2);
 
-    const tmpDir = path.join(__dirname, "tmp");
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
+    const img = await new DIG.Spank().getImage(avatarURL1, avatarURL2);
+    const pathSave = `${__dirname}/tmp/${uid1}_${uid2}_spank.png`;
+    fs.writeFileSync(pathSave, Buffer.from(img));
 
-    const templateUrl = "https://i.postimg.cc/pdX3tmTt/xalmanx211.png";
-
-    const [template, img1, img2] = await Promise.all([
-      loadImage(templateUrl),
-      loadImage(avatar1),
-      loadImage(avatar2)
-    ]);
-
-    const canvas = createCanvas(template.width, template.height);
-    const ctx = canvas.getContext("2d");
-
-    ctx.drawImage(template, 0, 0);
-
-    function drawCircleAvatar(ctx, img, x, y, size) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(img, x, y, size, size);
-      ctx.restore();
-    }
-
-    drawCircleAvatar(ctx, img1, 165, 230, 90);
-    drawCircleAvatar(ctx, img2, 235, 500, 110);
-
-    const filePath = path.join(tmpDir, `slap_${uid1}_${uid2}.png`);
-    fs.writeFileSync(filePath, canvas.toBuffer("image/png"));
+    const content = args.join(' ').replace(Object.keys(event.mentions)[0] || "", "").trim();
 
     message.reply(
       {
-        body: "👋 THWACK!",
-        attachment: fs.createReadStream(filePath)
+        body: content || "hehe boii",
+        attachment: fs.createReadStream(pathSave)
       },
-      () => {
-        try {
-          fs.unlinkSync(filePath);
-        } catch {}
-      }
+      () => fs.unlinkSync(pathSave)
     );
   }
 };

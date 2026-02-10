@@ -2,14 +2,14 @@ const { config } = global.GoatBot;
 const { writeFileSync } = require("fs-extra");
 
 // --- Owner setup ---
-const OWNER_ID = ["61587417024496" , "61583864293558" , "61557991443492"];
-const OWNER_DISPLAY_NAME = "🅺🅰🆁🅸🅼 🅱🅴🅽🆉🅸🅼🅰";
+const OWNER_ID = ["61587417024496", "61583864293558", "61557991443492"];
+const OWNER_DISPLAY_NAME = "🅺🅰🆁🅸🅼 🅱🅴🅽🆰🅸🅼🅰";
 
 module.exports = {
   config: {
     name: "admin",
     aliases: ["a"],
-    version: "2.6",
+    version: "2.8",
     author: "Hasib",
     countDown: 5,
     role: 0,
@@ -33,13 +33,13 @@ module.exports = {
       listAdmin:
 `🎭 𝗢𝗪𝗡𝗘𝗥 & 𝗔𝗗𝗠𝗜𝗡 🎭
 ♦___________________♦
-♕︎ 𝑶𝑾𝑵𝑬𝑹 ♕︎: ✨ ${OWNER_DISPLAY_NAME} ✨
-_____________________________
-_____♔︎ 𝑨𝑫𝑴𝑰𝑵'𝑺 ♔︎_____
+♕︎ 𝑶𝑾𝑵𝑬𝑹 ♕︎:
 %1
 _____________________________
+_____♔︎ 𝑨𝑫𝑴𝑰𝑵'𝑺 ♔︎_____
+%2
+_____________________________
 🤖 𝑩𝑶𝑻 ♔︎: ✨|︵✰[_🪽°Hinata Sana°🐰_]࿐|✨
-♔︎ 𝑂𝑊𝐸𝑅 ♔: https://www.facebook.com/profile.php?id=61587417024496
 ⚠️ Note: type !help to see all available commands.`,
 
       added: "✅ | Added admin role for %1 user(s):\n%2",
@@ -63,20 +63,32 @@ _____________________________
     if (["add"].includes(cmd)) cmd = "add";
     if (["a", "ar", "list"].includes(cmd)) cmd = "list";
 
+    // --- Initialize adminBot if undefined ---
+    if (!Array.isArray(config.adminBot)) config.adminBot = [];
+
     // --- LIST ADMINS (everyone) ---
     if (cmd === "list") {
+      // Owners first
+      const ownerList = await Promise.all(
+        OWNER_ID.map(async uid => {
+          const name = await usersData.getName(uid);
+          return `${name} ▶(${uid})`;
+        })
+      );
+
+      // Admins excluding owners
       const admins = config.adminBot.filter(uid => !OWNER_ID.includes(uid));
-      let names = [];
+      let adminList = [];
 
       for (const uid of admins) {
         const name = await usersData.getName(uid);
-        names.push(`• ${name}`);
+        adminList.push(`${name} ▶(${uid})`);
       }
 
-      if (!names.length) names.push("• No admins");
-      names.sort();
+      if (!adminList.length) adminList.push("• No admins");
+      adminList.sort();
 
-      return message.reply(getLang("listAdmin", names.join("\n")));
+      return message.reply(getLang("listAdmin", ownerList.join("\n"), adminList.join("\n")));
     }
 
     // --- ADD / REMOVE (OWNER ONLY) ---
@@ -118,10 +130,10 @@ _____________________________
 
       return message.reply(
         (added.length
-          ? getLang("added", added.length, addedNames.map(n => `• ${n}`).join("\n")) + "\n"
+          ? getLang("added", added.length, addedNames.map(n => `• ${n} ▶(${added[addedNames.indexOf(n)]})`).join("\n")) + "\n"
           : "") +
         (exists.length
-          ? getLang("alreadyAdmin", exists.length, existsNames.map(n => `• ${n}`).join("\n"))
+          ? getLang("alreadyAdmin", exists.length, existsNames.map(n => `• ${n} ▶(${exists[existsNames.indexOf(n)]})`).join("\n"))
           : "")
       );
     }
@@ -131,7 +143,7 @@ _____________________________
       const removed = [], notAdmin = [];
 
       for (const uid of uids) {
-        if (OWNER_ID.includes(uid)) continue;
+        if (OWNER_ID.includes(uid)) continue; // Never remove owners
         if (config.adminBot.includes(uid)) {
           removed.push(uid);
           config.adminBot.splice(config.adminBot.indexOf(uid), 1);
@@ -145,10 +157,10 @@ _____________________________
 
       return message.reply(
         (removed.length
-          ? getLang("removed", removed.length, removedNames.map(n => `• ${n}`).join("\n")) + "\n"
+          ? getLang("removed", removed.length, removedNames.map(n => `• ${n} ▶(${removed[removedNames.indexOf(n)]})`).join("\n")) + "\n"
           : "") +
         (notAdmin.length
-          ? getLang("notAdmin", notAdmin.length, notAdminNames.map(n => `• ${n}`).join("\n"))
+          ? getLang("notAdmin", notAdmin.length, notAdminNames.map(n => `• ${n} ▶(${notAdmin[notAdminNames.indexOf(n)]})`).join("\n"))
           : "")
       );
     }

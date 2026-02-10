@@ -4,8 +4,8 @@ const { writeFileSync } = require("fs-extra");
 module.exports = {
   config: {
     name: "whitelist",
-    aliases: ["wl" , "w" , "wlt" , "wlt -m"],
-    version: "2.0",
+    aliases: ["wl", "w", "wlt", "wlt -m"],
+    version: "2.1",
     author: "Hasib",
     countDown: 5,
     role: 2,
@@ -50,16 +50,15 @@ module.exports = {
       threadModeDisabled: "✅ | Thread whitelist mode DISABLED.",
       threadInvalidId: "⚠️ | Please enter a valid thread ID.",
       status: "📊 | WHITELIST STATUS\n\n👤 User Whitelist: %1\n   Total users: %2\n\n💬 Thread Whitelist: %3\n   Total threads: %4",
-      noPermission: "❌ | Only VIP users or admins can use this command.",
+      noPermission: "❌ | Only bot admins can use this command.",
       invalidSubcommand: "⚠️ | Invalid subcommand. Use: user, thread, or status"
     }
   },
 
   onStart: async function ({ message, args, usersData, threadsData, event, getLang, role }) {
-    // VIP system
-    const vipUsers = ["61557991443492"];
-    const isVip = vipUsers.includes(event.senderID);
-    const isAdmin = role >= 3;
+    // Permission: All bot admins (role >= 2)
+    const isAdmin = role >= 2;
+    if (!isAdmin) return message.reply(getLang("noPermission"));
 
     // Initialize whitelist if missing
     if (!config.whiteListMode) config.whiteListMode = { enable: false, whiteListIds: [] };
@@ -71,13 +70,12 @@ module.exports = {
     const action = args[1]?.toLowerCase();
 
     switch (subCommand) {
+      // USER WHITELIST
       case "user":
       case "u": {
         switch (action) {
           case "add":
           case "-a": {
-            if (!isVip && !isAdmin) return message.reply(getLang("noPermission"));
-
             let uids = [];
             if (Object.keys(event.mentions).length > 0) uids = Object.keys(event.mentions);
             else if (event.messageReply) uids.push(event.messageReply.senderID);
@@ -86,7 +84,6 @@ module.exports = {
             if (uids.length === 0) return message.reply(getLang("userMissingId"));
 
             const added = [], alreadyExists = [];
-
             for (const uid of uids) {
               const uidStr = String(uid);
               if (config.whiteListMode.whiteListIds.map(String).includes(uidStr)) alreadyExists.push(uidStr);
@@ -109,8 +106,6 @@ module.exports = {
           case "-r":
           case "delete":
           case "-d": {
-            if (!isVip && !isAdmin) return message.reply(getLang("noPermission"));
-
             let uids = [];
             if (Object.keys(event.mentions).length > 0) uids = Object.keys(event.mentions);
             else if (event.messageReply) uids.push(event.messageReply.senderID);
@@ -119,7 +114,6 @@ module.exports = {
             if (uids.length === 0) return message.reply(getLang("userMissingId"));
 
             const removed = [], notFound = [];
-
             for (const uid of uids) {
               const uidStr = String(uid);
               const index = config.whiteListMode.whiteListIds.map(String).indexOf(uidStr);
@@ -150,7 +144,6 @@ module.exports = {
 
           case "on":
           case "enable": {
-            if (!isVip && !isAdmin) return message.reply(getLang("noPermission"));
             config.whiteListMode.enable = true;
             saveConfig();
             return message.reply(getLang("userModeEnabled"));
@@ -158,7 +151,6 @@ module.exports = {
 
           case "off":
           case "disable": {
-            if (!isVip && !isAdmin) return message.reply(getLang("noPermission"));
             config.whiteListMode.enable = false;
             saveConfig();
             return message.reply(getLang("userModeDisabled"));
@@ -168,6 +160,7 @@ module.exports = {
         }
       }
 
+      // THREAD WHITELIST
       case "thread":
       case "t":
       case "group":
@@ -175,8 +168,6 @@ module.exports = {
         switch (action) {
           case "add":
           case "-a": {
-            if (!isVip && !isAdmin) return message.reply(getLang("noPermission"));
-
             let threadID = args[2] || event.threadID;
             if (!threadID || isNaN(threadID)) return message.reply(getLang("threadInvalidId"));
 
@@ -199,8 +190,6 @@ module.exports = {
           case "-r":
           case "delete":
           case "-d": {
-            if (!isVip && !isAdmin) return message.reply(getLang("noPermission"));
-
             let threadID = args[2] || event.threadID;
             if (!threadID || isNaN(threadID)) return message.reply(getLang("threadInvalidId"));
 
@@ -233,7 +222,6 @@ module.exports = {
 
           case "on":
           case "enable": {
-            if (!isVip && !isAdmin) return message.reply(getLang("noPermission"));
             config.whiteListModeThread.enable = true;
             saveConfig();
             return message.reply(getLang("threadModeEnabled"));
@@ -241,7 +229,6 @@ module.exports = {
 
           case "off":
           case "disable": {
-            if (!isVip && !isAdmin) return message.reply(getLang("noPermission"));
             config.whiteListModeThread.enable = false;
             saveConfig();
             return message.reply(getLang("threadModeDisabled"));
@@ -251,6 +238,7 @@ module.exports = {
         }
       }
 
+      // STATUS
       case "status":
       case "info": {
         const userEnabled = config.whiteListMode.enable ? "ON" : "OFF";

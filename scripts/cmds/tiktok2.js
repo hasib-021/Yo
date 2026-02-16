@@ -5,7 +5,7 @@ const path = require("path");
 module.exports = {
   config: {
     name: "tiktok2",
-    aliases: ["tikt","tt2"],
+    aliases: ["tikt2","tt2"],
     version: "1.2",
     author: "Hasib",
     role: 0,

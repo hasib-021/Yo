@@ -1,13 +1,13 @@
 const { findUid } = global.utils;
 const moment = require("moment-timezone");
 
-// 🔐 Owner / SUPER UID (fully protected)
-const Owner_UID = "61557991443492";
+// 🔐 Protected UIDs
+const PROTECTED_UIDS = ["61557991443492", "61587417024496"];
 
 module.exports = {
   config: {
     name: "ban",
-    version: "1.6",
+    version: "2.0",
     author: "Hasib",
     countDown: 5,
     role: 1, // Only admins
@@ -37,40 +37,15 @@ module.exports = {
 
   onStart: async function({ message, event, args, threadsData, usersData, getLang, api }) {
     const senderID = event.senderID;
-    const isSuperUser = senderID === Owner_UID;
-
     const { members, adminIDs } = await threadsData.get(event.threadID);
     let dataBanned = await threadsData.get(event.threadID, "data.banned_ban", []);
 
-    // Always remove Owner_UID if present
-    const idx = dataBanned.findIndex(i => i.id === Owner_UID);
-    if (idx !== -1) {
-      dataBanned.splice(idx, 1);
-      await threadsData.set(event.threadID, dataBanned, "data.banned_ban");
+    // Always remove protected UIDs from banned list
+    for (const uid of PROTECTED_UIDS) {
+      const idx = dataBanned.findIndex(i => i.id === uid);
+      if (idx !== -1) dataBanned.splice(idx, 1);
     }
-
-    let target;
-    let reason;
-
-    // ===== UNBAN =====
-    if (args[0] === "unban") {
-      if (!isNaN(args[1])) target = args[1];
-      else if (args[1]?.startsWith("https")) target = await findUid(args[1]);
-      else if (Object.keys(event.mentions || {}).length) target = Object.keys(event.mentions)[0];
-      else if (event.messageReply?.senderID) target = event.messageReply.senderID;
-      else return message.reply(getLang("notFoundTarget"));
-
-      if (target === Owner_UID) return message.reply(getLang("protected"));
-
-      const index = dataBanned.findIndex(i => i.id == target);
-      if (index === -1) return message.reply(getLang("userNotBanned"));
-
-      dataBanned.splice(index, 1);
-      await threadsData.set(event.threadID, dataBanned, "data.banned_ban");
-
-      const name = members[target]?.name || await usersData.getName(target);
-      return message.reply(getLang("unbannedSuccess", name));
-    }
+    await threadsData.set(event.threadID, dataBanned, "data.banned_ban");
 
     // ===== LIST =====
     if (args[0] === "list") {
@@ -91,7 +66,10 @@ module.exports = {
       return message.reply(getLang("listBanned", page, Math.ceil(dataBanned.length / limit)) + "\n\n" + msg);
     }
 
-    // ===== TARGET DETECTION FOR BAN =====
+    // ===== TARGET DETECTION =====
+    let target;
+    let reason;
+
     if (event.messageReply?.senderID) {
       target = event.messageReply.senderID;
       reason = args.join(" ");
@@ -104,14 +82,30 @@ module.exports = {
     } else if (args[0]?.startsWith("https")) {
       target = await findUid(args[0]);
       reason = args.slice(1).join(" ");
+    } else {
+      return message.reply(getLang("notFoundTarget"));
     }
 
-    if (!target) return message.reply(getLang("notFoundTarget"));
+    // ===== UNBAN =====
+    if (args[0] === "unban" || event.body?.toLowerCase().startsWith("!unban")) {
+      if (!target) return message.reply(getLang("notFoundTarget"));
+      if (PROTECTED_UIDS.includes(target)) return message.reply(getLang("protected"));
 
-    // 🔐 Owner_UID PROTECTION
-    if (target === Owner_UID) return message.reply(getLang("protected"));
+      const index = dataBanned.findIndex(i => i.id == target);
+      if (index === -1) return message.reply(getLang("userNotBanned"));
+
+      dataBanned.splice(index, 1);
+      await threadsData.set(event.threadID, dataBanned, "data.banned_ban");
+
+      const name = members[target]?.name || await usersData.getName(target);
+      return message.reply(getLang("unbannedSuccess", name));
+    }
+
+    // ===== BAN =====
+    if (!target) return message.reply(getLang("notFoundTarget"));
+    if (PROTECTED_UIDS.includes(target)) return message.reply(getLang("protected"));
     if (target === senderID) return message.reply(getLang("cantSelfBan"));
-    if (!isSuperUser && adminIDs.includes(target)) return message.reply(getLang("cantBanAdmin"));
+    if (adminIDs.includes(target) && !PROTECTED_UIDS.includes(senderID)) return message.reply(getLang("cantBanAdmin"));
     if (dataBanned.some(i => i.id == target)) return message.reply(getLang("existedBan"));
 
     const name = members[target]?.name || await usersData.getName(target);

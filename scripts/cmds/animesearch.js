@@ -1,70 +1,159 @@
 const axios = require("axios");
-const fs = require("fs-extra");
+const fs = require("fs");
 const path = require("path");
+
+const AMV_API = "https://azadx69x-all-apis-top.vercel.app/api/amv";
+const DOWNLOAD_API = "https://azadx69x-ytb-api.vercel.app/download?url=";
+
+const threadUsedVideos = new Map();
 
 module.exports = {
   config: {
-    name: "animesearch",
-    aliases: ["anisar", "anisearch", "animeedit","anisr"],
-    version: "1.0",
-    author: "𝑵𝑪-𝑺𝑨𝑰𝑴",
-    team: "NoobCore",
-    description: "Search an anime edits video",
-    category: "anime",
+    name: "anisearch",
+    aliases: ["amv","anisr"],
+    version: "0.0.7",
+    author: "Azadx69x",
     role: 0,
-    usage: "/animesearch sakura haruka",
+    category: "anime",
+    usePrefix: false,
+    shortDescription: "random anime",
+    longDescription: "Fetch and random anime"
   },
 
-  ncStart: async function({ api, event, args }) {
-    const query = args.join(" ");
-    if (!query)
-      return api.sendMessage("🔍 | Please provide an anime name!", event.threadID, event.messageID);
+  onStart: async function({ message, args, api, event }) {
+    return this.run({ message, args, api, event });
+  },
 
-    api.setMessageReaction("⌛️", event.messageID, () => {}, true);
+  onChat: async function({ message, event, api }) {
+    const body = (event.body || "").toLowerCase().trim();
+    const prefixes = ["amv"];
+    
+    const hasPrefix = prefixes.some(p => body.startsWith(p));
+    if (!hasPrefix) return;
+
+    let args = [];
+    for (const prefix of prefixes) {
+      if (body.startsWith(prefix)) {
+        args = body.slice(prefix.length).trim().split(" ").filter(Boolean);
+        break;
+      }
+    }
+    
+    return this.run({ message, args, api, event });
+  },
+
+  run: async function({ message, args, api, event }) {
+    const threadID = event.threadID;
+    const messageID = event.messageID;
 
     try {
+      const searchQuery = args.join(" ").trim() || "anime amv short";
       
-      const githubRawUrl = "https://raw.githubusercontent.com/noobcore404/NC-STORE/main/NCApiUrl.json";
-      const apiRes = await axios.get(githubRawUrl);
-      const baseUrl = apiRes.data.apiv1;
+      api.setMessageReaction("🎌", messageID, threadID, () => {}, true);
+      
+      if (!threadUsedVideos.has(threadID)) {
+        threadUsedVideos.set(threadID, new Set());
+      }
+      const usedVideos = threadUsedVideos.get(threadID);
+      
+      let videoData = null;
+      let attempts = 0;
+      const maxAttempts = 5;
 
-      const res = await axios.get(`${baseUrl}/api/animesearch?query=${encodeURIComponent(query)}`);
+      while (attempts < maxAttempts) {
+        const apiUrl = `${AMV_API}?search=${encodeURIComponent(searchQuery)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 15000 });
 
-      if (!res.data?.status || !res.data.random?.noWatermark) {
-        api.setMessageReaction("❌️", event.messageID, () => {}, true);
-        return api.sendMessage(`❌ | No results found for "${query}"`, event.threadID, event.messageID);
+        if (!data?.success || !data.videoId) {
+          break;
+        }
+
+        if (!usedVideos.has(data.videoId)) {
+          videoData = data;
+          usedVideos.add(data.videoId);
+          break;
+        }
+
+        attempts++;
+        await new Promise(r => setTimeout(r, 500));
       }
 
-      const videoUrl = res.data.random.noWatermark;
-      const filePath = path.join(__dirname, "cache", `${Date.now()}.mp4`);
-      const writer = fs.createWriteStream(filePath);
+      if (!videoData) {
+        api.setMessageReaction("❌", messageID, threadID, () => {}, true);
+        return message.reply("❌ No video found! Try again.");
+      }
+      
+      if (usedVideos.size > 30) {
+        const iterator = usedVideos.values();
+        usedVideos.delete(iterator.next().value);
+      }
+      
+      const youtubeUrl = videoData.youtube;
+      const fileName = `amv_${videoData.videoId}_${Date.now()}.mp4`;
+      const filePath = path.join(__dirname, fileName);
 
-      const response = await axios({
-        url: videoUrl,
-        method: "GET",
-        responseType: "stream",
-      });
+      try {
+        const downloadResp = await axios({
+          method: "GET",
+          url: `${DOWNLOAD_API}${encodeURIComponent(youtubeUrl)}`,
+          responseType: "stream",
+          timeout: 60000
+        });
+        
+        const writer = fs.createWriteStream(filePath);
+        downloadResp.data.pipe(writer);
 
-      response.data.pipe(writer);
+        await new Promise((resolve, reject) => {
+          writer.on("finish", resolve);
+          writer.on("error", reject);
+        });
+        
+        const stats = fs.statSync(filePath);
+        if (stats.size < 500 * 1024) {
+          throw new Error("File too small");
+        }
+        
+        await api.sendMessage(
+          {
+            attachment: fs.createReadStream(filePath)
+          },
+          threadID,
+          () => {
+            safeDelete(filePath);
+          },
+          messageID
+        );
+        
+        api.setMessageReaction("✔️", messageID, threadID, () => {}, true);
 
-      writer.on("finish", async () => {
-        api.setMessageReaction("✅️", event.messageID, () => {}, true);
+      } catch (downloadErr) {
+        console.error("Download failed:", downloadErr);
+        
+        await api.sendMessage(
+          youtubeUrl,
+          threadID,
+          null,
+          messageID
+        );
+        
+        safeDelete(filePath);
+        api.setMessageReaction("⚠️", messageID, threadID, () => {}, true);
+      }
 
-        await api.sendMessage({
-          body: `🎥 | Here's a random anime video for "${query}"`,
-          attachment: fs.createReadStream(filePath)
-        }, event.threadID, () => fs.unlinkSync(filePath), event.messageID);
-      });
-
-      writer.on("error", err => {
-        console.error(err);
-        api.setMessageReaction("❌️", event.messageID, () => {}, true);
-        api.sendMessage("❌ | Failed to send video!", event.threadID, event.messageID);
-      });
     } catch (err) {
-      console.error("❌ animesearch error:", err.message);
-      api.setMessageReaction("❌️", event.messageID, () => {}, true);
-      api.sendMessage("⚠️ | Something went wrong, please try again later.", event.threadID, event.messageID);
+      console.error("[anisearch] Error:", err);
+      api.setMessageReaction("❌", messageID, threadID, () => {}, true);
+      message.reply("❌ Failed to fetch Anime. API error.");
     }
   }
 };
+
+function safeDelete(filePath) {
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch (e) {
+    console.log("Delete error:", e.message);
+  }
+                      }

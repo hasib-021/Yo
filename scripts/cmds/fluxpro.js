@@ -1,49 +1,65 @@
 const axios = require("axios");
-
-const baseApiUrl = async () => {
-  const base = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
-  return base.data.mahmud;
-};
-
-/**
-* @author MahMUD
-* @author: do not delete it
-*/
+const fs = require("fs-extra");
+const path = require("path");
 
 module.exports = {
   config: {
     name: "fluxpro",
-    version: "1.7",
-    author: "MahMUD",
-    countDown: 10,
+    version: "1.0",
+    author: "Hasib",
+    countDown: 5,
     role: 0,
-    category: "Image gen",
-    guide: "{pn} [prompt]"
+    description: {
+      en: "Generate an AI image using the Oculux Flux 1.1 Pro API",
+      vi: "Tạo ảnh AI bằng Oculux Flux 1.1 Pro API",
+    },
+    category: "image generator",
+    guide: {
+      en: "{pn} <prompt>\nExample: {prefix}fluxpro cyberpunk samurai in rain",
+      vi: "{pn} <prompt>\nVí dụ: {prefix}fluxpro cyberpunk samurai in rain",
+    },
   },
 
-  onStart: async function ({ api, event, args }) {
+  onStart: async function ({ message, event, args, api, commandName }) {
+    const prefix =
+      global.utils?.getPrefix?.(event.threadID) ||
+      global.GoatBot?.config?.prefix ||
+      "/";
+
     const prompt = args.join(" ");
-    if (!prompt) return api.sendMessage("Please provide a prompt to generate an image.", event.threadID, event.messageID);
+    if (!prompt) {
+      return message.reply(
+        `⚠️ Please provide a prompt.\nExample: ${prefix}${commandName} futuristic dragon flying in space`
+      );
+    }
+
+    api.setMessageReaction("🎨", event.messageID, () => {}, true);
+    const waitingMsg = await message.reply(
+      "🎨 Generating your image... Please wait..."
+    );
+
+    const encodedPrompt = encodeURIComponent(prompt);
+    const url = `https://dev.oculux.xyz/api/flux-1.1-pro?prompt=${encodedPrompt}`;
+    const imgPath = path.join(__dirname, "cache", `fluxpro_${event.senderID}.png`);
 
     try {
-      const apiUrl = await baseApiUrl();
-      if (!apiUrl) return api.sendMessage("Base API URL could not be loaded.", event.threadID, event.messageID);
+      const response = await axios.get(url, { responseType: "arraybuffer" });
+      fs.writeFileSync(imgPath, response.data);
 
-      const res = await axios.post(`${apiUrl}/api/fluxpro`, { prompt });
-
-      if (!res.data?.imageUrl) return api.sendMessage("Failed to generate image.", event.threadID, event.messageID);
-
-      const imageStream = await global.utils.getStreamFromURL(res.data.imageUrl);
-
-      const message = await api.sendMessage({
-        body: "✅ Here is your generated image",
-        attachment: imageStream
-      }, event.threadID, event.messageID);
-
-      api.setMessageReaction("🪽", message.messageID, () => {}, true);
-
-    } catch (err) {
-      return api.sendMessage("An error occurred while generating the image.", event.threadID, event.messageID);
+      await message.reply(
+        {
+          body: `✅ Here is your FluxPro AI image.\n🖋️ Prompt: ${prompt}`,
+          attachment: fs.createReadStream(imgPath),
+        },
+        () => {
+          fs.unlinkSync(imgPath);
+          if (waitingMsg?.messageID) api.unsendMessage(waitingMsg.messageID);
+        }
+      );
+    } catch (error) {
+      console.error("FluxPro generation error:", error);
+      message.reply("⚠️ Failed to generate FluxPro image. Please try again later.");
+      if (waitingMsg?.messageID) api.unsendMessage(waitingMsg.messageID);
     }
-  }
+  },
 };

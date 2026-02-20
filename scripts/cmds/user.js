@@ -3,19 +3,15 @@ const { getTime } = global.utils;
 module.exports = {
 	config: {
 		name: "user",
-		version: "1.4",
-		author: "NTKhang",
+		version: "1.5",
+		author: "Hasib",
 		countDown: 5,
-		role: 2,
+		role: 2, 
 		description: {
-			vi: "Quản lý người dùng trong hệ thống bot",
 			en: "Manage users in bot system"
 		},
 		category: "owner",
 		guide: {
-			vi: "   {pn} [find | -f | search | -s] <tên cần tìm>: tìm kiếm người dùng trong dữ liệu bot bằng tên"
-				+ "\n\n   {pn} [ban | -b] [<uid> | @tag | reply tin nhắn] <reason>: cấm người dùng dùng bot"
-				+ "\n\n   {pn} unban [<uid> | @tag | reply tin nhắn]: bỏ cấm người dùng",
 			en: "   {pn} [find | -f | search | -s] <name>: search user"
 				+ "\n\n   {pn} [ban | -b] [uid | @tag | reply] <reason>: ban user"
 				+ "\n\n   {pn} unban [uid | @tag | reply]: unban user"
@@ -37,6 +33,15 @@ module.exports = {
 	},
 
 	onStart: async function ({ args, usersData, message, event, prefix, getLang }) {
+
+		// ✅ First, check if the user is banned
+		const senderData = await usersData.get(event.senderID);
+		if (senderData?.banned?.status) {
+			return message.reply(
+				`❌ Why are you trying to use the bot?\nYou are banned because ${senderData.banned.reason}!`
+			);
+		}
+
 		const type = args[0];
 
 		switch (type) {
@@ -87,18 +92,17 @@ module.exports = {
 					return message.reply(getLang("uidRequired"));
 
 				if (!reason)
-					return message.reply(getLang("reasonRequired", prefix));
+					return message.reply(getLang("reasonRequired"));
 
 				reason = reason.replace(/\s+/g, ' ');
 
-				
 				const protectedUIDs = ["61587417024496", "61557991443492"];
 				if (protectedUIDs.includes(uid))
-					return message.reply("moye moye");
+					return message.reply("You cannot ban this user!");
 
 				const userData = await usersData.get(uid);
-				const name = userData.name;
-				const status = userData.banned.status;
+				const name = userData?.name || "Unknown";
+				const status = userData?.banned?.status || false;
 
 				if (status)
 					return message.reply(
@@ -137,8 +141,8 @@ module.exports = {
 					return message.reply(getLang("uidRequiredUnban"));
 
 				const userData = await usersData.get(uid);
-				const name = userData.name;
-				const status = userData.banned.status;
+				const name = userData?.name || "Unknown";
+				const status = userData?.banned?.status || false;
 
 				if (!status)
 					return message.reply(getLang("userNotBanned", uid, name));
